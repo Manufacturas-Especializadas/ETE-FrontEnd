@@ -1,15 +1,7 @@
 import { useEffect, useState } from "react";
 import config from "../../../config";
 
-const ProductionForm = () => {
-    const[formData, setFormData] = useState({
-        time: "",
-        line_origin: "",
-        machine_process: "",
-        machine: "",
-        part_number: "",
-        piece_count: ""
-    });
+const ProductionForm = ({ formData, onFormChange }) => {
     const [times, setTimes] = useState([]);
     const [lines, setLines] = useState([]);
     const [processes, setProcesses] = useState([]);
@@ -50,7 +42,7 @@ const ProductionForm = () => {
                 try{
                     setIsLoading(prev => ({...prev, processes: true}));
                     setProcesses([]);
-                    setFormData(prev => ({...prev, machine_process: "", machine: ""}));
+                    onFormChange({ machine_process: "", machine: "" });
 
                     const response = await fetch(`${config.apiUrl}/ProductionForm/GetProcessesByLine/${formData.line_origin}`);
                     if(!response.ok) throw new Error("Error al obtener procesos");
@@ -66,7 +58,7 @@ const ProductionForm = () => {
             fetchProcesses();
         }else{
             setProcesses([]);
-            setFormData(prev => ({...prev, machine_process: "", machine: ""}));
+            onFormChange({ machine_process: "", machine: "" });
         }
     }, [formData.line_origin]);
 
@@ -76,7 +68,7 @@ const ProductionForm = () => {
                 try{
                     setIsLoading(prev => ({...prev, machines: true}));
                     setMachines([]);
-                    setFormData(prev => ({...prev, machine: ""}));
+                    onFormChange({ machine: "" });
 
                     const response = await fetch(`${config.apiUrl}/ProductionForm/GetMachinesByProcess/${formData.machine_process}`);
                     if(!response.ok) throw new Error("Error al obtener maquinas");
@@ -92,16 +84,13 @@ const ProductionForm = () => {
             fetchMachines();
         }else{
             setMachines([]);
-            setFormData(prev => ({...prev, machine: ""}));
+            onFormChange({ machine: "" });
         }
     }, [formData.machine_process]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData((prev) => ({
-            ...prev,
-            [name]: value
-        }));
+        onFormChange({ [name]: value });
     };
 
     return (
