@@ -1,14 +1,30 @@
 import { Chart as ChartJs, ArcElement, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from "chart.js";
 import { Doughnut, Bar } from "react-chartjs-2";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import DatePicker from "react-datepicker";
+import config from "../../../config";
 import "react-datepicker/dist/react-datepicker.css";
 
 ChartJs.register(ArcElement, Tooltip, Legend, BarElement, CategoryScale, LinearScale);
 
 const Dashboard = () => {
+    const [lines, setLines] = useState([]);
+
+    useEffect(() => {
+        const getLines = async() => {
+            const response = await fetch(`${config.apiUrl}/ProductionForm/GetLines`);
+
+            if(!response.ok) throw new Error("Error al obtener la lista");
+
+            const data = await response.json();
+            setLines(data);
+        }
+
+        getLines();
+    }, []);
+
     const [filters, setFilters] = useState({
         linea: "todas",
         turno: "todos",
@@ -89,18 +105,18 @@ const Dashboard = () => {
             display: false,
             },
         },
-        y: {
-            beginAtZero: false,
-            min: 50,
-            max: 100,
-            title: {
-            display: true,
-            text: 'Porcentaje'
+            y: {
+                beginAtZero: false,
+                min: 50,
+                max: 100,
+                title: {
+                display: true,
+                text: 'Porcentaje'
+                },
+                grid: {
+                color: "#E5E7EB",
+                },
             },
-            grid: {
-            color: "#E5E7EB",
-            },
-        },
         },
             plugins: {
             legend: {
@@ -180,12 +196,11 @@ const Dashboard = () => {
                                 border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 
                                 focus:border-blue-500 focus:ring-blue-500"                           
                             >
+                                <option value="">Selecciona una linea</option>
                                 {
-                                    lineas.map((linea) => (
-                                        <option key={ linea } value={ linea }>
-                                            {
-                                                linea.charAt(0).toUpperCase() + linea.slice(1)
-                                            }
+                                    lines.map((item) => (
+                                        <option key={ item.id } value={ item.i }>
+                                            { item.name }
                                         </option>
                                     ))
                                 }
