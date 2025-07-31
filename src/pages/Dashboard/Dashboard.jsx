@@ -11,6 +11,7 @@ ChartJs.register(ArcElement, Tooltip, Legend, BarElement, CategoryScale, LinearS
 
 const Dashboard = () => {
     const [lines, setLines] = useState([]);
+    const [workShift, setWorkShift] = useState([]);
 
     useEffect(() => {
         const getLines = async() => {
@@ -25,6 +26,19 @@ const Dashboard = () => {
         getLines();
     }, []);
 
+    useEffect(() => {
+        const getWorkShifts = async() => {
+            const response = await fetch(`${config.apiUrl}/ProductionForm/GetWorkShifts`);
+
+            if(!response.ok) throw new Error("Error al obtener la lista");
+
+            const data = await response.json();
+            setWorkShift(data);
+        };
+
+        getWorkShifts();
+    }, []);
+
     const [filters, setFilters] = useState({
         linea: "todas",
         turno: "todos",
@@ -36,7 +50,7 @@ const Dashboard = () => {
     const turnos = ["Todos", "Matutino", "Vespertino", "Nocturno"];
     
     const eteGeneralData  = {
-        labels: ["Disponibildad", "Rendimiento", "Calidad"],
+        labels: ["Disponibildad", "Eficiencia", "Calidad"],
         datasets: [
             {
                 data: [85, 95, 96],
@@ -80,20 +94,14 @@ const Dashboard = () => {
     };
 
     const barChartData = {
-        labels: ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
+        labels: ["MTTO CORRECTIVO", "MTTO PREVENTIVO", "COMIDA", "FALTA DE PROGRAMA", "VACACIONES", "RETRABAJO"],
         datasets: [
-        {
-            label: "ETE Diario",
-            data: [72, 75, 78, 76, 80, 82, 79],
-            backgroundColor: "#3B82F6",
-            borderRadius: 6,
-        },
-        {
-            label: "Meta ETE",
-            data: [85, 85, 85, 85, 85, 85, 85],
-            backgroundColor: "#E5E7EB",
-            borderRadius: 6,
-        }
+            {
+                label: "Tiempo muerto",
+                data: [72, 75, 78, 76, 80, 82, 79],
+                backgroundColor: "#3B82F6",
+                borderRadius: 6,
+            },           
         ]
     };
 
@@ -220,12 +228,11 @@ const Dashboard = () => {
                                 border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 
                                 focus:border-blue-500 focus:ring-blue-500"                           
                             >
+                                <option value="">Selecciona un turno</option>
                                 {
-                                    turnos.map((turno) => (
-                                        <option key={ turno } value={ turno }>
-                                            {
-                                                turno.charAt(0).toUpperCase() + turno.slice(1)
-                                            }
+                                    workShift.map((item) => (
+                                        <option key={ item.id } value={ item.id }>
+                                            { item.name }
                                         </option>
                                     ))
                                 }
@@ -284,7 +291,7 @@ const Dashboard = () => {
                                 <p className="font-medium text-blue-600">85%</p>
                             </div>
                             <div>
-                                <p>Rendimiento</p>
+                                <p>Eficiencia</p>
                                 <p className="font-medium text-green-600">92%</p>
                             </div>
                             <div>
@@ -316,7 +323,7 @@ const Dashboard = () => {
                     <div className="rounded-xl bg-white p-4 shadow-sm">
                         <div className="mb-4 flex items-center justify-between">
                             <h2 className="text-lg font-semibold text-gray-800">
-                                Rendimiento
+                                Eficiencia
                             </h2>
                             <span className="rounded-full bg-green-100 px-3 py-1 
                                 text-sm font-medium text-green-800">
@@ -419,9 +426,9 @@ const Dashboard = () => {
 
                 <div className="mt-6 rounded-xl bg-white p-4 shadow-sm">
                     <div className="mb-4 flex items-center justify-between">
-                        <h2 className="text-lg font-semibold text-gray-800">Tiempo Muerto Diario</h2>
+                        <h2 className="text-lg font-semibold text-gray-800">Tiempo Muerto</h2>
                         <span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-medium text-orange-800">
-                            Últimos 7 días
+                            Últimos 6 días
                         </span>
                     </div>
                     <div className="h-80 flex justify-center">
