@@ -213,19 +213,38 @@ const ProductionForm = ({ formData, onFormChange }) => {
                     </div>
                     
                     <div className="space-y-1">
-                        <label className="block text-sm font-medium text-gray-600">
-                            Cantidad Piezas
-                        </label>
-                        <input
-                            required
-                            type="number"
-                            name="piece_count"
-                            onChange={ handleChange }
-                            value={ formData.piece_count }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
-                            focus:outline-none focus:ring-2 focus:ring-primary focus:border-secondary"
-                            min="0"
-                        />
+                        <div className="flex space-x-4">
+                            <div className="flex-1">
+                                <label className="block text-sm font-medium text-gray-600">
+                                    Cantidad Piezas
+                                </label>
+                                <input
+                                    required
+                                    type="number"
+                                    name="piece_count"
+                                    onChange={ handleChange }
+                                    value={ formData.piece_count }
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
+                                    focus:outline-none focus:ring-2 focus:ring-primary focus:border-secondary"
+                                    min="0"
+                                />
+                            </div>
+
+                            <div className="flex-1">
+                                <label className="block text-sm font-medium text-gray-600">
+                                    Scrap
+                                </label>
+                                <input 
+                                    type="number"
+                                    name="scrap"
+                                    onChange={ handleChange }
+                                    value={ formData.scrap }
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
+                                    focus:outline-none focus:ring-2 focus:ring-primary focus:border-secondary"
+                                    min="0"
+                                />
+                            </div>
+                        </div>                       
                     </div>
                 </div>
             </div>

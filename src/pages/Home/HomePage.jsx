@@ -13,7 +13,8 @@ const HomePage = () => {
         machine_process: "",
         machine: "",
         part_number: "",
-        piece_count: ""
+        piece_count: "",
+        scrap: ""
     });
 
     const navigate = useNavigate();
@@ -97,7 +98,8 @@ const HomePage = () => {
                 machine_process: "",
                 machine: "",
                 part_number: "",
-                piece_count: ""
+                piece_count: "",
+                scrap: ""
             });
             
             setDeadTimesRows([{ 
