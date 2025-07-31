@@ -162,7 +162,7 @@ const ProductionForm = ({ formData, onFormChange }) => {
                             onChange={ handleChange }
                             disabled={ !formData.line_origin || isLoading.processes }
                         >
-                            <option value="">Seleccionar</option>
+                            <option value="">Selecciona</option>
                             {
                                 processes.map(process => (
                                     <option key={ process.id } value={ process.id }>
@@ -187,7 +187,7 @@ const ProductionForm = ({ formData, onFormChange }) => {
                             onChange={ handleChange }
                             disabled={ !formData.machine_process || isLoading.machines }
                         >
-                            <option value="">Seleccionar</option>
+                            <option value="">Selecciona</option>
                             {
                                 machines.map(machine => (
                                     <option key={ machine.id } value={ machine.id }>
