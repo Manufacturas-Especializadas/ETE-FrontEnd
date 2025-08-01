@@ -41,6 +41,7 @@ const HomePage = () => {
         const payload = {
             partNumber: productionData.part_number.toString().trim(),
             pieceQuantity: parseInt(productionData.piece_count) || 0,
+            scrap: parseInt(productionData.scrap) || 0,
             hourId: parseInt(productionData.time) || 0,
             linesId: parseInt(productionData.line_origin) || 0,
             processId: parseInt(productionData.machine_process) || 0,
