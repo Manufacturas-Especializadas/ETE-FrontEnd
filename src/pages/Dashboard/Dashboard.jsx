@@ -2,7 +2,7 @@ import { Chart as ChartJs, ArcElement, Tooltip, Legend, BarElement, CategoryScal
 import { Doughnut, Bar } from "react-chartjs-2";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { da, es } from "date-fns/locale";
 import DatePicker from "react-datepicker";
 import config from "../../../config";
 import "react-datepicker/dist/react-datepicker.css";
@@ -12,6 +12,24 @@ ChartJs.register(ArcElement, Tooltip, Legend, BarElement, CategoryScale, LinearS
 const Dashboard = () => {
     const [lines, setLines] = useState([]);
     const [workShift, setWorkShift] = useState([]);
+    const [totalPieces, setTotalPieces] = useState(0);
+    const [qualityData, setQualityData] = useState({
+        labels: ["Productos", "Scrap"],
+        datasets: [
+            {
+                data: [95, 5],
+                backgroundColor: ["#F59E0B", "#F43F5E"],
+                borderWidth: 0
+            }
+        ]
+    });
+
+    const [filters, setFilters] = useState({
+        linea: "todas",
+        turno: "todos",
+        fechaInicio: new Date(new Date().setDate(new Date().getDate() - 7)),
+        fechaFin: new Date()
+    });
 
     useEffect(() => {
         const getLines = async() => {
@@ -39,15 +57,62 @@ const Dashboard = () => {
         getWorkShifts();
     }, []);
 
-    const [filters, setFilters] = useState({
-        linea: "todas",
-        turno: "todos",
-        fechaInicio: new Date(new Date().setDate(new Date().getDate() - 7)),
-        fechaFin: new Date()
-    });
+    const loadQualityData = async() => {
+        try {
+            const params = new URLSearchParams();
+            
+            if (filters.linea && filters.linea !== "todas") {
+                params.append('lineId', filters.linea);
+            }
+            
+            if (filters.turno && filters.turno !== "todos") {
+                params.append('shiftId', filters.turno);
+            }
+            
+            if (filters.fechaInicio) {
+                params.append('startDate', new Date(filters.fechaInicio).toISOString());
+            }
+            
+            if (filters.fechaFin) {
+                const endDate = new Date(filters.fechaFin);
+                endDate.setHours(23, 59, 59, 999);
+                params.append('endDate', endDate.toISOString());
+            }
 
-    const lineas = ["todas", "Linea 1", "Linea 2", "Linea 3"];
-    const turnos = ["Todos", "Matutino", "Vespertino", "Nocturno"];
+            const response = await fetch(`${config.apiUrl}/ProductionForm/GetQualityData?${params}`);
+            const data = await response.json();
+        
+            const goodPieces = data.goodPieces;
+            const scrapPieces = data.scrap;
+            const totalPieces = data.totalPieces;
+
+            setQualityData({
+                labels: ["Piezas", "Scrap"],
+                datasets: [{
+                    data: [goodPieces, scrapPieces],
+                    backgroundColor: ["#F59E0B", "#F43F5E"],
+                    borderWidth: 0
+                }]
+            });
+            
+            setTotalPieces(totalPieces);
+        } catch(error) {
+            console.error("Error loading quality data: ", error);
+            setQualityData({
+                labels: ["Piezas", "Scrap"],
+                datasets: [{
+                    data: [0, 0],
+                    backgroundColor: ["#F59E0B", "#F43F5E"],
+                    borderWidth: 0
+                }]
+            });
+            setTotalPieces(0);
+        }
+    };
+
+    useEffect(() => {
+        loadQualityData();
+    }, [filters]);
     
     const eteGeneralData  = {
         labels: ["Disponibildad", "Eficiencia", "Calidad"],
@@ -82,17 +147,6 @@ const Dashboard = () => {
         ]
     };
 
-    const calidadData = {
-        labels: ["Productos buenos", "Retrabajos", "Scrap"],
-        datasets: [
-            {
-                data: [96, 2, 2],
-                backgroundColor: ["#F59E0B", "#8B5CF6", "#F43F5E"],
-                borderWidth: 0
-            }
-        ]
-    };
-
     const barChartData = {
         labels: ["MTTO CORRECTIVO", "MTTO PREVENTIVO", "COMIDA", "FALTA DE PROGRAMA", "VACACIONES", "RETRABAJO"],
         datasets: [
@@ -118,49 +172,70 @@ const Dashboard = () => {
                 min: 50,
                 max: 100,
                 title: {
-                display: true,
-                text: 'Porcentaje'
+                    display: true,
+                    text: 'Porcentaje'
                 },
                 grid: {
-                color: "#E5E7EB",
+                    color: "#E5E7EB",
                 },
             },
         },
             plugins: {
             legend: {
-            position: "top",
-        },
-        tooltip: {
-            callbacks: {
-            label: function(context) {
-                return `${context.dataset.label}: ${context.raw}%`;
+                position: "top",
+            },
+            tooltip: {
+                callbacks: {
+                label: function(context) {
+                    return `${context.dataset.label}: ${context.raw}%`;
+                }
+                }
             }
-            }
-        }
         },
     };
 
     const donutOptions = {
         cutout: "70%",
         plugins: {
-        legend: {
-            position: "bottom",
-            labels: {
-            boxWidth: 12,
-            padding: 20,
-            font: {
-                family: "Inter, sans-serif",
+            legend: {
+                position: "bottom",
+                labels: {
+                boxWidth: 12,
+                padding: 20,
+                font: {
+                    family: "Inter, sans-serif",
+                },
+                },
             },
-            },
-        },
-        tooltip: {
-            callbacks: {
-            label: function(context) {
-                return `${context.label}: ${context.raw}%`;
+            tooltip: {
+                callbacks: {
+                label: function(context) {
+                    return `${context.label}: ${context.raw}%`;
+                }
+                }
             }
+        },
+    };
+
+    const donutQaulityOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const label = context.label || '';
+                        const value = context.raw || 0;
+                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const percentage = Math.round((value / total) * 100);
+                        return `${label}: ${value} (${percentage}%)`;
+                    }
+                }
             }
         }
-        },
     };
 
     const currentDate = format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es });
@@ -202,13 +277,13 @@ const Dashboard = () => {
                                 onChange={ handleFilterChange }
                                 className="block w-full rounded-lg border 
                                 border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 
-                                focus:border-blue-500 focus:ring-blue-500"                           
+                                focus:border-blue-500 focus:ring-blue-500"
                             >
-                                <option value="">Selecciona una linea</option>
+                                <option value="todas">Todas las líneas</option>
                                 {
-                                    lines.map((item) => (
-                                        <option key={ item.id } value={ item.i }>
-                                            { item.name }
+                                    Array.isArray(lines) && lines.map((item) => (
+                                        <option key={item.id} value={item.id}>
+                                            {item.name}
                                         </option>
                                     ))
                                 }
@@ -346,15 +421,17 @@ const Dashboard = () => {
                             </h2>
                             <span className="rounded-full bg-yellow-100 px-3 py-1 
                                 text-sm font-medium text-yellow-800">
-                                96%
+                                {qualityData.datasets[0].data[0] > 0 ? 
+                                    Math.round((qualityData.datasets[0].data[0] / 
+                                    (qualityData.datasets[0].data[0] + qualityData.datasets[0].data[1])) * 100) + '%' : '0%'}
                             </span>
                         </div>
                         <div className="h-64 flex justify-center">
-                            <Doughnut data={ calidadData } options={ donutOptions }/>
+                            <Doughnut data={ qualityData } options={ donutQaulityOptions } />
                         </div>
                         <div className="mt-4 flex justify-between text-sm text-gray-500">
                             <span>Total producido</span>
-                            <span className="font-medium">500 unidades</span>
+                            <span className="font-medium">{totalPieces} unidades</span>
                         </div>
                     </div>
                 </div>
