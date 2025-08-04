@@ -12,6 +12,7 @@ ChartJs.register(ArcElement, Tooltip, Legend, BarElement, CategoryScale, LinearS
 const Dashboard = () => {
     const [lines, setLines] = useState([]);
     const [workShift, setWorkShift] = useState([]);
+    const [machines, setMachines] = useState([]);
     const [totalPieces, setTotalPieces] = useState(0);
     const [availabilityPercentage, setAvailabilityPercentage] = useState(85);
     const [qualityData, setQualityData] = useState({
@@ -76,6 +77,7 @@ const Dashboard = () => {
     const [filters, setFilters] = useState({
         linea: "todas",
         turno: "todos",
+        maquina: "todas",
         fechaInicio: new Date(new Date().setDate(new Date().getDate() - 7)),
         fechaFin: new Date()
     });
@@ -104,6 +106,19 @@ const Dashboard = () => {
         };
 
         getWorkShifts();
+    }, []);
+
+    useEffect(() => {
+        const getMachine = async() => {
+            const response = await fetch(`${config.apiUrl}/ProductionForm/GetMachines`);
+
+            if(!response.ok) throw new Error("Error al obtener la lista");
+
+            const data = await response.json();
+            setMachines(data);
+        };
+
+        getMachine();
     }, []);
 
     const loadQualityData = async() => {
@@ -498,7 +513,7 @@ const Dashboard = () => {
 
                 <div className="mb-6 rounded-xl bg-white p-4 shadow-sm">
                     <h2 className="mb-4 text-lg font-semibold text-gray-800">Filtros</h2>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                         <div>
                             <label className="mb-1 block text-sm font-medium text-gray-700">
                                 Líneas
@@ -523,6 +538,29 @@ const Dashboard = () => {
                             </select>
                         </div>
 
+                        <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                                Maquina
+                            </label>
+                            <select
+                                id="maquina"
+                                name="maquina"
+                                value={ filters.maquina }
+                                onChange={ handleFilterChange }
+                                className="block w-full rounded-lg border 
+                                border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 
+                                focus:border-blue-500 focus:ring-blue-500"
+                            >
+                                <option value="">Todas las maquinas</option>
+                                {
+                                    machines.map((item) => (
+                                        <option key={ item.id } value={ item.id }>
+                                            { item.name }
+                                        </option>
+                                    ))
+                                }
+                            </select>
+                        </div>
                         <div>
                             <label className="mb-1 block text-sm font-medium text-gray-700">
                                 Turno
