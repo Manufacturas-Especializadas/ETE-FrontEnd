@@ -13,6 +13,7 @@ const Dashboard = () => {
     const [lines, setLines] = useState([]);
     const [workShift, setWorkShift] = useState([]);
     const [totalPieces, setTotalPieces] = useState(0);
+    const [availabilityPercentage, setAvailabilityPercentage] = useState(85);
     const [qualityData, setQualityData] = useState({
         labels: ["Productos", "Scrap"],
         datasets: [
@@ -22,6 +23,54 @@ const Dashboard = () => {
                 borderWidth: 0
             }
         ]
+    });
+    const [efficiencyData, setEfficiencyData] = useState({
+        labels: ["Eficiencia", "Diferencia"],
+        datasets: [
+            {
+                data: [0, 100],
+                backgroundColor: ["#10B981", "#E5E7EB"],
+                borderWidth: 0
+            }
+        ]
+    });
+    const [availabilityData, setavailabilityData] = useState({
+        labels: ["Tiempo disponible", "Tiempo muerto"],
+        datasets: [
+            {
+                data: [85, 15],
+                backgroundColor: ["#3B82F6", "#F97316"],
+                borderWidth: 0
+            }
+        ]
+    });    
+    const [deadTimeData, setDeadTimeData] = useState({
+        labels: [],
+        datasets: [
+            {
+                label: "Tiempo muerto (minutos)",
+                data: [],
+                backgroundColor: "#3B82F6",
+                borderRadius: 6,
+            }
+        ]
+    });
+    const [deadTimeStats, setDeadTimeStats] = useState({
+        totalMinutes: 0,
+        averageMinutes: 0
+    });
+    const [metrics, setMetrics] = useState({
+        deadTime: 0,
+        deadTimeVsAvg: 0,
+        scrap: 0,
+        scrapVsAvg: 0
+    });  
+
+    const [stats, setStats] = useState({
+        produced: 0,
+        expected: 0,
+        efficiency: 0,
+        hours: 0
     });
 
     const [filters, setFilters] = useState({
@@ -110,8 +159,208 @@ const Dashboard = () => {
         }
     };
 
+    const loadEfficiencyData = async() => {
+        try{
+            const params = new URLSearchParams();
+
+            if (filters.linea && filters.linea !== "todas") {
+                params.append('lineId', filters.linea);
+            }
+            
+            if (filters.turno && filters.turno !== "todos") {
+                params.append('shiftId', filters.turno);
+            }
+            
+            if (filters.fechaInicio) {
+                params.append('startDate', new Date(filters.fechaInicio).toISOString());
+            }
+            
+            if (filters.fechaFin) {
+                const endDate = new Date(filters.fechaFin);
+                endDate.setHours(23, 59, 59, 999);
+                params.append('endDate', endDate.toISOString());
+            }
+
+            const response = await fetch(`${config.apiUrl}/ProductionForm/GetEfficiencyData?${params.toString()}`);
+            const data = await response.json();
+
+            const efficiency = data.Efficiency || 0;
+            const remaining = 100 - efficiency;
+
+            setEfficiencyData({
+                labels: ["Eficiencia", "Diferencia"],
+                datasets: [{
+                    data: [efficiency, remaining > 0 ? remaining : 0],
+                    backgroundColor: ["#10B981", "#E5E7EB"],
+                    borderWidth: 0
+                }]
+            });
+
+            setStats({
+                produced: data.TotalProduced,
+                expected: data.TotalExpected,
+                efficiency: efficiency,
+                hours: data.HourCount
+            });
+        }catch(error){
+            console.error("Error loading efficiency data: ", error);
+        }
+    };
+
+    const loadAvailabilityData = async() => {
+        try{
+            const params = new URLSearchParams();
+
+            if (filters.linea && filters.linea !== "todas") {
+                params.append('lineId', filters.linea);
+            }
+            
+            if (filters.turno && filters.turno !== "todos") {
+                params.append('shiftId', filters.turno);
+            }
+            
+            if (filters.fechaInicio) {
+                params.append('startDate', new Date(filters.fechaInicio).toISOString());
+            }
+
+            const response = await fetch(`${config.apiUrl}/ProductionForm/GetAvailabilityData?${params}`);
+
+            const data = await response.json();
+
+            const availablePercent = Math.round((data.availableTime / data.totalTime) * 100);
+            const deadPercent = 100 - availablePercent;
+
+            setavailabilityData({
+                labels: ["Tiempo disponible", "Tiempo muerto"],
+                datasets: [{
+                    data: [availablePercent, deadPercent],
+                    backgroundColor: ["#3B82F6", "#F97316"],
+                    borderWidth: 0
+                }]
+            });
+
+            setAvailabilityPercentage(data.percentage);
+        }catch(error){
+            console.error("Error loading availability data", error);
+            setavailabilityData({
+                labels: ["Tiempo disponible", "Tiempo muerto"],
+                datasets: [{
+                    data: [85, 15],
+                    backgroundColor: ["#3B82F6", "#F97316"],
+                    borderWidth: 0
+                }]
+            });
+            setAvailabilityPercentage(85);
+        }
+    };
+
+    const loadDeadTimeData = async() => {
+        try {
+            const params = new URLSearchParams();
+            
+            if (filters.linea && filters.linea !== "todas") {
+                params.append('lineId', filters.linea);
+            }
+            
+            if (filters.turno && filters.turno !== "todos") {
+                params.append('shiftId', filters.turno);
+            }
+            
+            if (filters.fechaInicio) {
+                params.append('startDate', new Date(filters.fechaInicio).toISOString());
+            }
+            
+            if (filters.fechaFin) {
+                const endDate = new Date(filters.fechaFin);
+                endDate.setHours(23, 59, 59, 999);
+                params.append('endDate', endDate.toISOString());
+            }
+
+            const response = await fetch(`${config.apiUrl}/ProductionForm/GetDeadTimeByReasonLast6Days?${params}`);
+            const data = await response.json();
+
+            setDeadTimeData({
+                labels: data.labels,
+                datasets: [{
+                    label: "Tiempo muerto (minutos)",
+                    data: data.data,
+                    backgroundColor: "#3B82F6",
+                    borderRadius: 6,
+                }]
+            });
+
+            setDeadTimeStats({
+                totalMinutes: data.totalMinutes,
+                averageMinutes: data.averageMinutes.toFixed(1)
+            });
+        } catch(error) {
+            console.error("Error loading dead time data: ", error);
+            setDeadTimeData({
+                labels: [],
+                datasets: [{
+                    label: "Tiempo muerto (minutos)",
+                    data: [],
+                    backgroundColor: "#3B82F6",
+                    borderRadius: 6,
+                }]
+            });
+            setDeadTimeStats({
+                totalMinutes: 0,
+                averageMinutes: 0
+            });
+        }
+    };
+
+    const loadMetrics = async() => {
+        try{
+            const params = new URLSearchParams();
+
+            if (filters.linea && filters.linea !== "todas") {
+                params.append('lineId', filters.linea);
+            }
+            
+            if (filters.fechaInicio) {
+                params.append('startDate', new Date(filters.fechaInicio).toISOString());
+            }
+            
+            if (filters.fechaFin) {
+                const endDate = new Date(filters.fechaFin);
+                endDate.setHours(23, 59, 59, 999);
+                params.append('endDate', endDate.toISOString());
+            }
+
+            const response = await fetch(`${config.apiUrl}/ProductionForm/GetKeyMetrics?${params}`);
+            const data = await response.json();
+
+            setMetrics({
+                deadTime: data.deadTime,
+                deadTimeVsAvg: data.deadTimeVsAvg,
+                scrap: data.scrap,
+                scrapVsAvg: data.scrapVsAvg
+            });
+        }catch(error){
+            console.error("Error loading metrics: ", error);
+        }
+    };
+
     useEffect(() => {
         loadQualityData();
+    }, [filters]);
+
+    useEffect(() => {
+        loadEfficiencyData();
+    }, [filters])
+
+    useEffect(() => {
+        loadAvailabilityData();
+    }, [filters]);
+
+    useEffect(() => {
+        loadDeadTimeData();
+    }, [filters]);
+
+    useEffect(() => {
+        loadMetrics();
     }, [filters]);
     
     const eteGeneralData  = {
@@ -125,93 +374,35 @@ const Dashboard = () => {
         ]
     }
 
-    const disponibilidadData = {
-        labels: ["Tiempo operativo", "Tiempo muerto", "Tiempo no planificado"],
-        datasets: [
-            {
-                data: [85, 10, 5],
-                backgroundColor: ["#3B82F6", "#F97316", "#F43F5E"],
-                borderWidth: 0
-            }
-        ]
-    };
-
-    const rendimientoData = {
-        labels: ["Producción real", "Perdida velocidad", "Microparos"],
-        datasets: [
-            {
-                data: [92, 5, 3],
-                backgroundColor: ["#10B981", "#F59E0B", "#EC4899"],
-                borderWidth: 0
-            }
-        ]
-    };
-
-    const barChartData = {
-        labels: ["MTTO CORRECTIVO", "MTTO PREVENTIVO", "COMIDA", "FALTA DE PROGRAMA", "VACACIONES", "RETRABAJO"],
-        datasets: [
-            {
-                label: "Tiempo muerto",
-                data: [72, 75, 78, 76, 80, 82, 79],
-                backgroundColor: "#3B82F6",
-                borderRadius: 6,
-            },           
-        ]
-    };
-
-    const barChartOptions = {
+    const barChartDeadTimes = {
         responsive: true,
+        maintainAspectRatio: false,
         scales: {
-        x: {
-            grid: {
-            display: false,
+            x: {
+                grid: {
+                    display: false,
+                },
             },
-        },
             y: {
-                beginAtZero: false,
-                min: 50,
-                max: 100,
+                beginAtZero: true,
                 title: {
                     display: true,
-                    text: 'Porcentaje'
+                    text: 'Minutos'
                 },
                 grid: {
                     color: "#E5E7EB",
                 },
             },
         },
-            plugins: {
+        plugins: {
             legend: {
                 position: "top",
             },
             tooltip: {
                 callbacks: {
-                label: function(context) {
-                    return `${context.dataset.label}: ${context.raw}%`;
-                }
-                }
-            }
-        },
-    };
-
-    const donutOptions = {
-        cutout: "70%",
-        plugins: {
-            legend: {
-                position: "bottom",
-                labels: {
-                boxWidth: 12,
-                padding: 20,
-                font: {
-                    family: "Inter, sans-serif",
-                },
-                },
-            },
-            tooltip: {
-                callbacks: {
-                label: function(context) {
-                    return `${context.label}: ${context.raw}%`;
-                }
+                    label: function(context) {
+                        return `${context.dataset.label}: ${context.raw} min`;
+                    }
                 }
             }
         },
@@ -236,6 +427,48 @@ const Dashboard = () => {
                 }
             }
         }
+    };
+
+    const dounutEfficiencyOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return `${context.label}: ${context.raw}%`;
+                    }
+                }
+            }
+        },
+        cutout: '70%'
+    };
+
+    const donutAvailabilityOptions = {
+        cutout: "70%",
+        plugins: {
+            legend: {
+                position: "bottom",
+                labels: {
+                    boxWidth: 12,
+                    padding: 20,
+                    font: {
+                        family: "Inter, sans-serif",
+                    },
+                },
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const minutes = Math.round((context.raw / 100) * 1440);
+                        return `${context.label}: ${context.raw}% (${minutes} mins)`;
+                    }
+                }
+            },
+        },
     };
 
     const currentDate = format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es });
@@ -320,21 +553,21 @@ const Dashboard = () => {
                             </label>
                             <div className="flex items-center space-x-2">
                                 <DatePicker
-                                    selected={filters.fechaInicio}
-                                    onChange={(date) => setFilters(prev => ({ ...prev, fechaInicio: date }))}
+                                    selected={ filters.fechaInicio }
+                                    onChange={ (date) => setFilters(prev => ({ ...prev, fechaInicio: date })) }
                                     selectsStart
-                                    startDate={filters.fechaInicio}
-                                    endDate={filters.fechaFin}
+                                    startDate={ filters.fechaInicio }
+                                    endDate={ filters.fechaFin }
                                     className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
                                 />
                                 <span className="text-gray-500">a</span>
                                 <DatePicker
-                                    selected={filters.fechaFin}
-                                    onChange={(date) => setFilters(prev => ({ ...prev, fechaFin: date }))}
+                                    selected={ filters.fechaFin }
+                                    onChange={ (date) => setFilters(prev => ({ ...prev, fechaFin: date })) }
                                     selectsEnd
-                                    startDate={filters.fechaInicio}
-                                    endDate={filters.fechaFin}
-                                    minDate={filters.fechaInicio}
+                                    startDate={ filters.fechaInicio }
+                                    endDate={ filters.fechaFin }
+                                    minDate={ filters.fechaInicio }
                                     className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
                                 />
                             </div>
@@ -358,7 +591,7 @@ const Dashboard = () => {
                             </div>
                         </div>
                         <div className="h-90 flex justify-center">
-                            <Doughnut data={ eteGeneralData } options={ donutOptions }/>
+                            <Doughnut data={ eteGeneralData } options={ donutAvailabilityOptions }/>
                         </div>
                         <div className="mt-4 grid grid-cols-3 gap-4 text-center text-sm text-gray-500">
                             <div>
@@ -383,15 +616,25 @@ const Dashboard = () => {
                             </h2>
                             <span className="rounded-full bg-blue-100 px-3 py-1 
                                 text-sm font-medium text-blue-800">
-                                85%
+                                { availabilityPercentage }%
                             </span>
                         </div>
                         <div className="h-64 flex justify-center">
-                            <Doughnut data={ disponibilidadData } options={ donutOptions }/>
+                            {availabilityData && availabilityData.datasets ? (
+                                <Doughnut data={ availabilityData } options={ donutAvailabilityOptions } />
+                            ) : (
+                                <div className="flex items-center justify-center h-full">
+                                    <span>Cargando datos...</span>
+                                </div>
+                            )}
                         </div>
                         <div className="mt-4 flex justify-between text-sm text-gray-500">
-                            <span>Tiempo total</span>
-                            <span className="font-medium">24 hrs</span>
+                            <span>Tiempo muerto total</span>
+                            <span className="font-medium">
+                                {availabilityData.datasets?.[0]?.data?.[1] ? 
+                                    `${Math.round((availabilityData.datasets[0].data[1] / 100) * 1440)} mins` : 
+                                    '0 mins'}
+                            </span>
                         </div>
                     </div>
 
@@ -406,7 +649,7 @@ const Dashboard = () => {
                             </span>
                         </div>
                         <div className="h-64 flex justify-center">
-                            <Doughnut data={ rendimientoData } options={ donutOptions }/>
+                            <Doughnut data={ efficiencyData } options={ dounutEfficiencyOptions }/>
                         </div>
                         <div className="mt-4 flex justify-between text-sm text-gray-500">
                             <span>Velocidad ideal</span>
@@ -442,8 +685,12 @@ const Dashboard = () => {
                         <div className="rounded-lg border border-gray-100 p-4">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-500">Tiempo muerto</p>
-                                    <p className="mt-1 text-2xl font-bold text-gray-800">45 min</p>
+                                    <p className="text-sm font-medium text-gray-500">
+                                        Tiempo muerto
+                                    </p>
+                                    <p className="mt-1 text-2xl font-bold text-gray-800">
+                                        { metrics.deadTime } min
+                                    </p>
                                 </div>
                                 <div className="rounded-full bg-red-100 p-3">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -454,7 +701,9 @@ const Dashboard = () => {
                             <div className="mt-4">
                                 <div className="flex items-center justify-between text-sm text-gray-500">
                                     <span>Vs. promedio</span>
-                                    <span className="font-medium text-red-600">+5 min</span>
+                                    <span className="font-medium text-red-600">
+                                        { metrics.deadTimeVsAvg >= 0 ? '+' : '' } { metrics.deadTimeVsAvg.toFixed(1) } min
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -467,34 +716,40 @@ const Dashboard = () => {
                                 </div>
                                 <div className="rounded-full bg-yellow-100 p-3">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                                    </svg>
-                                </div>
-                            </div>
-                            <div className="mt-4">
-                            <div className="flex items-center justify-between text-sm text-gray-500">
-                                <span>Vs. promedio</span>
-                                <span className="font-medium text-yellow-600">+3 unidades</span>
-                            </div>
-                            </div>
-                        </div>
-
-                        <div className="rounded-lg border border-gray-100 p-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-500">Scrap</p>
-                                    <p className="mt-1 text-2xl font-bold text-gray-800">12 unidades</p>
-                                </div>
-                                <div className="rounded-full bg-green-100 p-3">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                                     </svg>
                                 </div>
                             </div>
                             <div className="mt-4">
                                 <div className="flex items-center justify-between text-sm text-gray-500">
                                     <span>Vs. promedio</span>
-                                    <span className="font-medium text-green-600">-2 unidades</span>
+                                    <span className="font-medium text-yellow-600">+3 unidades</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="rounded-lg border border-gray-100 p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-500">
+                                        Scrap
+                                    </p>
+                                    <p className="mt-1 text-2xl font-bold text-gray-800">
+                                        { metrics.scrap } unidades
+                                    </p>
+                                </div>
+                                <div className="rounded-full bg-green-100 p-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div className="mt-4">
+                                <div className="flex items-center justify-between text-sm text-gray-500">
+                                    <span>Vs. promedio</span>
+                                    <span className="font-medium text-green-600">
+                                        { metrics.scrapVsAvg >= 0 ? '+' : '' } { metrics.scrapVsAvg.toFixed(1) } unidades
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -509,13 +764,13 @@ const Dashboard = () => {
                         </span>
                     </div>
                     <div className="h-80 flex justify-center">
-                        <Bar data={ barChartData } options={ barChartOptions } />
+                        <Bar data={ deadTimeData } options={ barChartDeadTimes } />
                     </div>
                     <div className="mt-4 flex justify-between text-sm text-gray-500">
-                        <span>Total tiempo muerto: 290 min</span>
-                        <span className="font-medium">Promedio diario: 41.4 min</span>
+                        <span>Total tiempo muerto: { deadTimeStats.totalMinutes } min</span>
+                        <span className="font-medium">Promedio diario: { deadTimeStats.averageMinutes } min</span>
                     </div>
-                </div>          
+                </div>   
             </div>
         </>
     )
