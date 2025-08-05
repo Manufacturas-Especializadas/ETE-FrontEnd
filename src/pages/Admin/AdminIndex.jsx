@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import DataTable from "react-data-table-component";
 import config from "../../../config";
+import Swal from "sweetalert2";
 
 const AdminIndex = () => {
     const [production, setProduction] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [downloading, setDownloading] = useState(false);
 
     const formateDate = (dateString) => {
         if(!dateString) return "Sin fecha";
@@ -26,6 +28,61 @@ const AdminIndex = () => {
         }
     };
 
+    const handleDownloadExcel = async() => {
+        try{
+            setDownloading(true);
+
+            Swal.fire({
+                title: "Generando reporte",
+                html: "Por favor espere mientras se prepara tu archivo...",
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            const response = await fetch(`${config.apiUrl}/ProductionForm/DownloadProduction`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify()
+            });
+
+            if(!response.ok) throw new Error("Error al generar el reporte");
+
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+
+            a.download;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(downloadUrl);
+
+            Swal.close();
+
+            Swal.fire({
+                icon: "success",
+                title: "Descarga completa",
+                text: "El archivo se ha descargado correctamente",
+                timer: 2000,
+                showDenyButton: false
+            });
+        }catch(error){
+            console.error("Error al descargar: ", error);
+            Swal.fire({
+                icon: "error",
+                title: "Oooops...",
+                text: "Ocurrio un error al descargar el reporte"
+            });
+        }finally{
+            setDownloading(false);
+        }
+    };
+
     useEffect(() => {
         const getListProduction = async() => {
             try{
@@ -34,7 +91,6 @@ const AdminIndex = () => {
                 if(!response.ok) throw new Error("Error al obtener la lista");
 
                 const data = await response.json();
-                console.log(data);
                 setProduction(data);
                 setError(null);
             }catch(error){
@@ -127,7 +183,7 @@ const AdminIndex = () => {
                         </h1>
                         <div className="flex space-x-3">
                             <button className="bg-primary hover:bg-secondary text-white px-4 py-2 rounded-md 
-                                transition-colors hover:cursor-pointer" disabled={ loading }>
+                                transition-colors hover:cursor-pointer" disabled={ loading } onClick={() => handleDownloadExcel()}>
                                 Exportar
                             </button>
                             <button className="bg-tertiary hover:bg-[#005a8c] text-white px-4 py-2 rounded-md
