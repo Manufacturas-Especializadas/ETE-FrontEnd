@@ -75,12 +75,13 @@ const Dashboard = () => {
     });
 
     const [filters, setFilters] = useState({
-        linea: "",
-        turno: "",
-        maquina: "",
+        linea: "todas",       
+        turno: "todos",       
+        maquina: "todas",     
         fechaInicio: new Date(new Date().setDate(new Date().getDate() - 7)),
         fechaFin: new Date()
     });
+
     const [tempFilters, setTempFilters] = useState({ ...filters });
 
     useEffect(() => {
@@ -122,13 +123,26 @@ const Dashboard = () => {
         getMachine();
     }, []);
 
-    const aplicarFiltros = () => {
+    const applyFilters = () => {
         if (!tempFilters.fechaInicio || !tempFilters.fechaFin) {
             alert("Selecciona un rango de fechas válido");
             return;
         }
 
         setFilters(tempFilters);
+    };
+
+    const cleanFilters = () => {
+        const nuevosFiltros = {
+            linea: "todas",
+            turno: "todos",
+            maquina: "todas",
+            fechaInicio: new Date(new Date().setDate(new Date().getDate() - 7)),
+            fechaFin: new Date(),
+        };
+
+        setFilters(nuevosFiltros);
+        setTempFilters(nuevosFiltros);
     };
 
 
@@ -161,12 +175,12 @@ const Dashboard = () => {
             const response = await fetch(`${config.apiUrl}/ProductionForm/GetQualityData?${params}`);
             const data = await response.json();
         
-            const goodPieces = data.goodPieces;
-            const scrapPieces = data.scrap;
-            const totalPieces = data.totalPieces;
+            const goodPieces = data.goodPieces || 0;
+            const scrapPieces = data.scrap || 0;
+            const totalPieces = data.totalPieces || 0;
 
             setQualityData({
-                labels: ["Piezas", "Scrap"],
+                labels: ["Piezas buenas", "Scrap"],
                 datasets: [{
                     data: [goodPieces, scrapPieces],
                     backgroundColor: ["#F59E0B", "#F43F5E"],
@@ -178,7 +192,7 @@ const Dashboard = () => {
         } catch(error) {
             console.error("Error loading quality data: ", error);
             setQualityData({
-                labels: ["Piezas", "Scrap"],
+                labels: ["Piezas buenas", "Scrap"],
                 datasets: [{
                     data: [0, 0],
                     backgroundColor: ["#F59E0B", "#F43F5E"],
@@ -241,8 +255,12 @@ const Dashboard = () => {
         try {
             const params = new URLSearchParams();
 
-            if (filters.linea && filters.linea !== "todas") {
+            if (filters.linea && filters.linea !== "todas") { 
                 params.append('lineId', filters.linea);
+            }
+
+            if (filters.maquina && filters.maquina !== "todas") { 
+                params.append('machineId', filters.maquina);
             }
 
             if (filters.turno && filters.turno !== "todos") {
@@ -252,7 +270,7 @@ const Dashboard = () => {
             if (filters.fechaInicio) {
                 params.append('startDate', new Date(filters.fechaInicio).toISOString());
             }
-
+            
             const response = await fetch(`${config.apiUrl}/ProductionForm/GetAvailabilityData?${params}`);
             const data = await response.json();
 
@@ -517,17 +535,6 @@ const Dashboard = () => {
 
     const currentDate = format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es });
 
-    const handleFilterChange = (e) => {
-        const { name, value } = e.target;
-            
-        if (name === 'fechaInicio' || name === 'fechaFin') {
-            const dateValue = value ? new Date(value) : null;
-            setFilters(prev => ({...prev, [name]: dateValue}));
-        } else {
-            setFilters(prev => ({...prev, [name]: value}));
-        }
-    };
-
     const oeeTotal = Math.round((85 * 92 * 96) / 10000);
 
     return (
@@ -576,11 +583,11 @@ const Dashboard = () => {
                             <select
                                 id="maquina"
                                 name="maquina"
-                                value={ tempFilters.linea }
-                                onChange={(e) => setTempFilters(prev => ({ ...prev, linea: e.target.value }))}
-                                    className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                                value={ tempFilters.maquina }
+                                onChange={(e) => setTempFilters(prev => ({ ...prev, maquina: e.target.value }))}
+                                className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
                             >
-                                <option value="">Todas las máquinas</option>
+                                <option value="todas">Todas las máquinas</option>
                                 {machines.map((item) => (
                                     <option key={item.id} value={item.id}>
                                         {item.name}
@@ -636,9 +643,15 @@ const Dashboard = () => {
                         </div>
                     </div>
 
-                    <div className="mt-4 flex justify-end">
+                    <div className="mt-4 flex justify-end gap-5">
                         <button
-                            onClick={aplicarFiltros}
+                            onClick={ cleanFilters }
+                            className="rounded bg-gray-600 px-4 py-2 text-white hover:bg-gray-700 hover:cursor-pointer"
+                        >
+                            Limpiar filtros
+                        </button>
+                        <button
+                            onClick={ applyFilters }
                             className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 hover:cursor-pointer"
                         >
                             Aplicar filtros
