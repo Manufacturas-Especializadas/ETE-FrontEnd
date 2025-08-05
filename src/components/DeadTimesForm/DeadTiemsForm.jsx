@@ -137,7 +137,6 @@ const DeadTimesForm = ({ rows = [], setRows }) => {
                                     </td>
                                     <td className="px-1 py-4 whitespace-nowrap">
                                         <select
-                                            required
                                             name="code"
                                             value={row.code || ""}
                                             onChange={(e) => handleCodeChange(index, e)}
