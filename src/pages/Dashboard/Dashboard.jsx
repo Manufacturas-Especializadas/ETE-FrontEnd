@@ -256,7 +256,6 @@ const Dashboard = () => {
             const response = await fetch(`${config.apiUrl}/ProductionForm/GetAvailabilityData?${params}`);
             const data = await response.json();
 
-            // Validación
             const availableTime = Number(data.availableTime) || 0;
             const totalTime = Number(data.totalTime) || 0;
 
@@ -268,7 +267,6 @@ const Dashboard = () => {
                 deadPercent = 100 - availablePercent;
             }
 
-            // No permitir valores negativos ni mayores a 100
             if (availablePercent < 0 || availablePercent > 100) availablePercent = 0;
             if (deadPercent < 0 || deadPercent > 100) deadPercent = 0;
 
