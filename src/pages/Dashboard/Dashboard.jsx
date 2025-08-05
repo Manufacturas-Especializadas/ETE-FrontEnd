@@ -75,12 +75,13 @@ const Dashboard = () => {
     });
 
     const [filters, setFilters] = useState({
-        linea: "todas",
-        turno: "todos",
-        maquina: "todas",
+        linea: "",
+        turno: "",
+        maquina: "",
         fechaInicio: new Date(new Date().setDate(new Date().getDate() - 7)),
         fechaFin: new Date()
     });
+    const [tempFilters, setTempFilters] = useState({ ...filters });
 
     useEffect(() => {
         const getLines = async() => {
@@ -121,16 +122,30 @@ const Dashboard = () => {
         getMachine();
     }, []);
 
+    const aplicarFiltros = () => {
+        if (!tempFilters.fechaInicio || !tempFilters.fechaFin) {
+            alert("Selecciona un rango de fechas válido");
+            return;
+        }
+
+        setFilters(tempFilters);
+    };
+
+
     const loadQualityData = async() => {
         try {
             const params = new URLSearchParams();
-            
+
             if (filters.linea && filters.linea !== "todas") {
                 params.append('lineId', filters.linea);
             }
             
             if (filters.turno && filters.turno !== "todos") {
                 params.append('shiftId', filters.turno);
+            }
+            
+            if (filters.maquina && filters.maquina !== "todas") {
+                params.append('machineId', filters.maquina);
             }
             
             if (filters.fechaInicio) {
@@ -223,27 +238,39 @@ const Dashboard = () => {
     };
 
     const loadAvailabilityData = async() => {
-        try{
+        try {
             const params = new URLSearchParams();
 
             if (filters.linea && filters.linea !== "todas") {
                 params.append('lineId', filters.linea);
             }
-            
+
             if (filters.turno && filters.turno !== "todos") {
                 params.append('shiftId', filters.turno);
             }
-            
+
             if (filters.fechaInicio) {
                 params.append('startDate', new Date(filters.fechaInicio).toISOString());
             }
 
             const response = await fetch(`${config.apiUrl}/ProductionForm/GetAvailabilityData?${params}`);
-
             const data = await response.json();
 
-            const availablePercent = Math.round((data.availableTime / data.totalTime) * 100);
-            const deadPercent = 100 - availablePercent;
+            // Validación
+            const availableTime = Number(data.availableTime) || 0;
+            const totalTime = Number(data.totalTime) || 0;
+
+            let availablePercent = 0;
+            let deadPercent = 0;
+
+            if (totalTime > 0) {
+                availablePercent = Math.round((availableTime / totalTime) * 100);
+                deadPercent = 100 - availablePercent;
+            }
+
+            // No permitir valores negativos ni mayores a 100
+            if (availablePercent < 0 || availablePercent > 100) availablePercent = 0;
+            if (deadPercent < 0 || deadPercent > 100) deadPercent = 0;
 
             setavailabilityData({
                 labels: ["Tiempo disponible", "Tiempo muerto"],
@@ -254,8 +281,8 @@ const Dashboard = () => {
                 }]
             });
 
-            setAvailabilityPercentage(data.percentage);
-        }catch(error){
+            setAvailabilityPercentage(data.percentage || availablePercent);
+        } catch (error) {
             console.error("Error loading availability data", error);
             setavailabilityData({
                 labels: ["Tiempo disponible", "Tiempo muerto"],
@@ -268,6 +295,7 @@ const Dashboard = () => {
             setAvailabilityPercentage(85);
         }
     };
+
 
     const loadDeadTimeData = async() => {
         try {
@@ -359,24 +387,27 @@ const Dashboard = () => {
     };
 
     useEffect(() => {
-        loadQualityData();
+        const filtrosValidos = filters.fechaInicio && filters.fechaFin;
+
+        if (!filtrosValidos) return;
+
+        const loadAllData = async () => {
+            try {
+                await Promise.all([
+                    loadQualityData(),
+                    loadEfficiencyData(),
+                    loadAvailabilityData(),
+                    loadDeadTimeData(),
+                    loadMetrics()
+                ]);
+            } catch (error) {
+                console.error("Error loading data:", error);
+            }
+        };
+
+        loadAllData();
     }, [filters]);
 
-    useEffect(() => {
-        loadEfficiencyData();
-    }, [filters])
-
-    useEffect(() => {
-        loadAvailabilityData();
-    }, [filters]);
-
-    useEffect(() => {
-        loadDeadTimeData();
-    }, [filters]);
-
-    useEffect(() => {
-        loadMetrics();
-    }, [filters]);
     
     const eteGeneralData  = {
         labels: ["Disponibildad", "Eficiencia", "Calidad"],
@@ -490,7 +521,13 @@ const Dashboard = () => {
 
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
-        setFilters(prev => ({...prev, [name]: value}));
+            
+        if (name === 'fechaInicio' || name === 'fechaFin') {
+            const dateValue = value ? new Date(value) : null;
+            setFilters(prev => ({...prev, [name]: dateValue}));
+        } else {
+            setFilters(prev => ({...prev, [name]: value}));
+        }
     };
 
     const oeeTotal = Math.round((85 * 92 * 96) / 10000);
@@ -521,46 +558,39 @@ const Dashboard = () => {
                             <select 
                                 id="linea"
                                 name="linea"
-                                value={ filters.linea }
-                                onChange={ handleFilterChange }
-                                className="block w-full rounded-lg border 
-                                border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 
-                                focus:border-blue-500 focus:ring-blue-500"
+                                value={ tempFilters.linea }
+                                onChange={(e) => setTempFilters(prev => ({ ...prev, linea: e.target.value }))}
+                                className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
                             >
                                 <option value="todas">Todas las líneas</option>
-                                {
-                                    Array.isArray(lines) && lines.map((item) => (
-                                        <option key={item.id} value={item.id}>
-                                            {item.name}
-                                        </option>
-                                    ))
-                                }
+                                {Array.isArray(lines) && lines.map((item) => (
+                                    <option key={ item.id } value={ item.id }>
+                                        { item.name }
+                                    </option>
+                                ))}
                             </select>
                         </div>
 
                         <div>
                             <label className="mb-1 block text-sm font-medium text-gray-700">
-                                Maquina
+                                Máquina
                             </label>
                             <select
                                 id="maquina"
                                 name="maquina"
-                                value={ filters.maquina }
-                                onChange={ handleFilterChange }
-                                className="block w-full rounded-lg border 
-                                border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 
-                                focus:border-blue-500 focus:ring-blue-500"
+                                value={ tempFilters.linea }
+                                onChange={(e) => setTempFilters(prev => ({ ...prev, linea: e.target.value }))}
+                                    className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
                             >
-                                <option value="">Todas las maquinas</option>
-                                {
-                                    machines.map((item) => (
-                                        <option key={ item.id } value={ item.id }>
-                                            { item.name }
-                                        </option>
-                                    ))
-                                }
+                                <option value="">Todas las máquinas</option>
+                                {machines.map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                        {item.name}
+                                    </option>
+                                ))}
                             </select>
                         </div>
+
                         <div>
                             <label className="mb-1 block text-sm font-medium text-gray-700">
                                 Turno
@@ -568,20 +598,16 @@ const Dashboard = () => {
                             <select 
                                 id="turno"
                                 name="turno"
-                                value={ filters.turno }
-                                onChange={ handleFilterChange }
-                                className="block w-full rounded-lg border 
-                                border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 
-                                focus:border-blue-500 focus:ring-blue-500"                           
+                                value={ tempFilters.turno }
+                                onChange={(e) => setTempFilters(prev => ({ ...prev, turno: e.target.value }))}
+                                className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
                             >
                                 <option value="">Selecciona un turno</option>
-                                {
-                                    workShift.map((item) => (
-                                        <option key={ item.id } value={ item.id }>
-                                            { item.name }
-                                        </option>
-                                    ))
-                                }
+                                {workShift.map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                        {item.name}
+                                    </option>
+                                ))}
                             </select>
                         </div>
 
@@ -591,25 +617,34 @@ const Dashboard = () => {
                             </label>
                             <div className="flex items-center space-x-2">
                                 <DatePicker
-                                    selected={ filters.fechaInicio }
-                                    onChange={ (date) => setFilters(prev => ({ ...prev, fechaInicio: date })) }
+                                    selected={tempFilters.fechaInicio}
+                                    onChange={(date) => setTempFilters(prev => ({ ...prev, fechaInicio: date }))}
                                     selectsStart
-                                    startDate={ filters.fechaInicio }
-                                    endDate={ filters.fechaFin }
+                                    startDate={tempFilters.fechaInicio}
+                                    endDate={tempFilters.fechaFin}
                                     className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
                                 />
                                 <span className="text-gray-500">a</span>
                                 <DatePicker
-                                    selected={ filters.fechaFin }
-                                    onChange={ (date) => setFilters(prev => ({ ...prev, fechaFin: date })) }
+                                    selected={tempFilters.fechaFin}
+                                    onChange={(date) => setTempFilters(prev => ({ ...prev, fechaFin: date }))}
                                     selectsEnd
-                                    startDate={ filters.fechaInicio }
-                                    endDate={ filters.fechaFin }
-                                    minDate={ filters.fechaInicio }
+                                    startDate={tempFilters.fechaInicio}
+                                    endDate={tempFilters.fechaFin}
+                                    minDate={tempFilters.fechaInicio}
                                     className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
                                 />
                             </div>
                         </div>
+                    </div>
+
+                    <div className="mt-4 flex justify-end">
+                        <button
+                            onClick={aplicarFiltros}
+                            className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 hover:cursor-pointer"
+                        >
+                            Aplicar filtros
+                        </button>
                     </div>
                 </div>
 
