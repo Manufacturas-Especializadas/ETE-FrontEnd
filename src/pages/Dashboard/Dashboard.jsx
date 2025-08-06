@@ -812,7 +812,9 @@ const Dashboard = () => {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-gray-500">Producción perdida</p>
-                                    <p className="mt-1 text-2xl font-bold text-gray-800">24 unidades</p>
+                                    <p className="mt-1 text-2xl font-bold text-gray-800">
+                                        { Math.round(stats.expected - stats.produced) } unidades
+                                    </p>
                                 </div>
                                 <div className="rounded-full bg-yellow-100 p-3">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -822,11 +824,13 @@ const Dashboard = () => {
                             </div>
                             <div className="mt-4">
                                 <div className="flex items-center justify-between text-sm text-gray-500">
-                                    <span>Vs. promedio</span>
-                                    <span className="font-medium text-yellow-600">+3 unidades</span>
+                                    <span>Eficiencia alcanzada</span>
+                                    <span className="font-medium text-yellow-600">
+                                        { stats.efficiency }%
+                                    </span>
                                 </div>
                             </div>
-                        </div>
+</div>
 
                         <div className="rounded-lg border border-gray-100 p-4">
                             <div className="flex items-center justify-between">
