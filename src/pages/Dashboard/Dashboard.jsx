@@ -203,8 +203,8 @@ const Dashboard = () => {
         }
     };
 
-    const loadEfficiencyData = async() => {
-        try{
+    const loadEfficiencyData = async () => {
+        try {
             const params = new URLSearchParams();
 
             if (filters.linea && filters.linea !== "todas") {
@@ -228,25 +228,31 @@ const Dashboard = () => {
             const response = await fetch(`${config.apiUrl}/ProductionForm/GetEfficiencyData?${params.toString()}`);
             const data = await response.json();
 
-            const efficiency = data.Efficiency || 0;
-            const remaining = 100 - efficiency;
+            const summaryItem = data.summary && data.summary.length > 0 ? data.summary[0] : {
+                totalProduced: 0,
+                totalExpected: 1,
+                efficiency: 0
+            };
+
+            const efficiencyPercentage = Math.round(summaryItem.efficiency * 100);
+            const remaining = 100 - efficiencyPercentage;
 
             setEfficiencyData({
                 labels: ["Eficiencia", "Diferencia"],
                 datasets: [{
-                    data: [efficiency, remaining > 0 ? remaining : 0],
+                    data: [efficiencyPercentage, remaining > 0 ? remaining : 0],
                     backgroundColor: ["#10B981", "#E5E7EB"],
                     borderWidth: 0
                 }]
             });
 
             setStats({
-                produced: data.TotalProduced,
-                expected: data.TotalExpected,
-                efficiency: efficiency,
-                hours: data.HourCount
+                produced: summaryItem.totalProduced,
+                expected: Math.round(summaryItem.totalExpected),
+                efficiency: efficiencyPercentage,
+                hours: 1
             });
-        }catch(error){
+        } catch(error) {
             console.error("Error loading efficiency data: ", error);
         }
     };
@@ -729,7 +735,7 @@ const Dashboard = () => {
                             </h2>
                             <span className="rounded-full bg-green-100 px-3 py-1 
                                 text-sm font-medium text-green-800">
-                                92%
+                                { stats.efficiency }%
                             </span>
                         </div>
                         <div className="h-64 flex justify-center">
@@ -739,6 +745,16 @@ const Dashboard = () => {
                             <span>Velocidad ideal</span>
                             <span className="font-medium">100%</span>
                         </div>
+                        {/* <div className="mt-4 grid grid-cols-2 gap-4">
+                            <div className="rounded-lg bg-gray-50 p-3">
+                                <p className="text-sm text-gray-500">Piezas producidas</p>
+                                <p className="text-lg font-semibold">{ stats.produced }</p>
+                            </div>
+                            <div className="rounded-lg bg-gray-50 p-3">
+                                <p className="text-sm text-gray-500">Piezas esperadas</p>
+                                <p className="text-lg font-semibold">{ stats.expected }</p>
+                            </div>
+                        </div> */}
                     </div>
 
                     <div className="rounded-xl bg-white p-4 shadow-sm">
