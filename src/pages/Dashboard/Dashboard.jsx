@@ -13,6 +13,7 @@ const Dashboard = () => {
     const [lines, setLines] = useState([]);
     const [workShift, setWorkShift] = useState([]);
     const [machines, setMachines] = useState([]);
+    const [eteTotal, setEteTotal] = useState(0);
     const [totalPieces, setTotalPieces] = useState(0);
     const [availabilityPercentage, setAvailabilityPercentage] = useState(85);
     const [qualityData, setQualityData] = useState({
@@ -44,7 +45,17 @@ const Dashboard = () => {
                 borderWidth: 0
             }
         ]
-    });    
+    });
+    const [eteGeneralData, setEteGeneralData]  = useState({
+        labels: ["Disponibildad", "Eficiencia", "Calidad"],
+        datasets: [
+            {
+                data: [85, 95, 96],
+                backgroundColor: ["#3B82F6", "#10B981", "#F59E0B"],
+                borderWidth: 0
+            }
+        ]
+    });
     const [deadTimeData, setDeadTimeData] = useState({
         labels: [],
         datasets: [
@@ -376,6 +387,73 @@ const Dashboard = () => {
         }
     };
 
+    const loadOeeData = async () => {
+        try {
+            const params = new URLSearchParams();
+
+            if(filters.linea && filters.linea !== "todas"){
+                params.append('lineId', filters.linea);
+            }
+
+            if(filters.turno && filters.turno !== "todos"){
+                params.append("shiftId", filters.turno);
+            }
+
+            if(filters.fechaInicio){
+                params.append("startDate", new Date(filters.fechaInicio).toISOString());
+            }
+
+            if(filters.fechaFin){
+                const endDate = new Date(filters.fechaFin);
+                endDate.setHours(23, 59, 59, 999);
+                params.append("endDate", endDate.toISOString());
+            }
+
+            if(filters.maquina && filters.maquina !== "todas"){
+                params.append("machineId", filters.maquina);
+            }
+
+            const [qualityRes, efficiencyRes, availabilityRes] = await Promise.all([
+                fetch(`${config.apiUrl}/ProductionForm/GetQualityData?${params.toString()}`),
+                fetch(`${config.apiUrl}/ProductionForm/GetEfficiencyData?${params.toString()}`),
+                fetch(`${config.apiUrl}/ProductionForm/GetAvailabilityData?${params.toString()}`)
+            ]);
+
+            const qualityData = await qualityRes.json();
+            const efficiencyData = await efficiencyRes.json();
+            const availabilityData = await availabilityRes.json();
+
+            const quality = qualityData.qualityPercentage || 0;
+            const efficiency = efficiencyData.summary?.length > 0 ?
+                Math.round(efficiencyData.summary[0].efficiency * 100) : 0;
+            const availability = availabilityData.percentage || 0;
+
+            const calculatedOee = Math.round((availability / 100) * (efficiency / 100) * (quality / 100) * 100);
+
+            setEteTotal(calculatedOee);
+            setEteGeneralData({
+                labels: ["Disponibilidad", "Eficiencia", "Calidad"],
+                datasets: [{
+                    data: [availability, efficiency, quality],
+                    backgroundColor: ["#3B82F6", "#10B981", "#F59E0B"],
+                    borderWidth: 0
+                }]
+            });
+
+        } catch(error) {
+            console.error("Error loading OEE data: ", error);
+            setEteTotal(0);
+            setEteGeneralData({
+                labels: ["Disponibilidad", "Eficiencia", "Calidad"],
+                datasets: [{
+                    data: [0, 0, 0],
+                    backgroundColor: ["#3B82F6", "#10B981", "#F59E0B"],
+                    borderWidth: 0
+                }]
+            });
+        }
+    };
+
     const loadMetrics = async() => {
         try{
             const params = new URLSearchParams();
@@ -419,6 +497,7 @@ const Dashboard = () => {
                     loadQualityData(),
                     loadEfficiencyData(),
                     loadAvailabilityData(),
+                    loadOeeData(),
                     loadDeadTimeData(),
                     loadMetrics()
                 ]);
@@ -429,18 +508,6 @@ const Dashboard = () => {
 
         loadAllData();
     }, [filters]);
-
-    
-    const eteGeneralData  = {
-        labels: ["Disponibildad", "Eficiencia", "Calidad"],
-        datasets: [
-            {
-                data: [85, 95, 96],
-                backgroundColor: ["#3B82F6", "#10B981", "#F59E0B"],
-                borderWidth: 0
-            }
-        ]
-    }
 
     const barChartDeadTimes = {
         responsive: true,
@@ -516,6 +583,8 @@ const Dashboard = () => {
     };
 
     const donutAvailabilityOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
         cutout: "70%",
         plugins: {
             legend: {
@@ -531,8 +600,7 @@ const Dashboard = () => {
             tooltip: {
                 callbacks: {
                     label: function(context) {
-                        const minutes = Math.round((context.raw / 100) * 1440);
-                        return `${context.label}: ${context.raw}% (${minutes} mins)`;
+                        return `${context.label}: ${context.raw}%`;
                     }
                 }
             },
@@ -540,8 +608,6 @@ const Dashboard = () => {
     };
 
     const currentDate = format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es });
-
-    const oeeTotal = Math.round((85 * 92 * 96) / 10000);
 
     return (
         <> 
@@ -671,30 +737,36 @@ const Dashboard = () => {
                             <h2 className="text-lg font-semibold text-gray-800">ETE</h2>
                             <div className="flex items-center space-x-2">
                                 <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
-                                    { oeeTotal }%
+                                    { eteTotal }%
                                 </span>
                                 <span className={`rounded-full px-3 py-1 text-sm font-medium ${
-                                    oeeTotal >= 85 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                                    eteTotal >= 85 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
                                 }`}>
                                     Meta: 85%
                                 </span>
                             </div>
                         </div>
                         <div className="h-90 flex justify-center">
-                            <Doughnut data={ eteGeneralData } options={ donutAvailabilityOptions }/>
+                            <Doughnut data={ eteGeneralData } options={ donutAvailabilityOptions } />
                         </div>
                         <div className="mt-4 grid grid-cols-3 gap-4 text-center text-sm text-gray-500">
                             <div>
                                 <p>Disponibilidad</p>
-                                <p className="font-medium text-blue-600">85%</p>
+                                <p className="font-medium text-blue-600">
+                                    { eteGeneralData.datasets[0].data[0] }%
+                                </p>
                             </div>
                             <div>
                                 <p>Eficiencia</p>
-                                <p className="font-medium text-green-600">92%</p>
+                                <p className="font-medium text-green-600">
+                                    { eteGeneralData.datasets[0].data[1] }%
+                                </p>
                             </div>
                             <div>
                                 <p>Calidad</p>
-                                <p className="font-medium text-yellow-600">96%</p>
+                                <p className="font-medium text-yellow-600">
+                                    { eteGeneralData.datasets[0].data[2] }%
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -830,7 +902,7 @@ const Dashboard = () => {
                                     </span>
                                 </div>
                             </div>
-</div>
+                    </div>
 
                         <div className="rounded-lg border border-gray-100 p-4">
                             <div className="flex items-center justify-between">
