@@ -10,12 +10,24 @@ import "react-datepicker/dist/react-datepicker.css";
 ChartJs.register(ArcElement, Tooltip, Legend, BarElement, CategoryScale, LinearScale);
 
 const Dashboard = () => {
+    const [filters, setFilters] = useState({
+        linea: "todas",       
+        turno: "todos",       
+        maquina: "todas",     
+        fechaInicio: new Date(new Date().setDate(new Date().getDate() - 7)),
+        fechaFin: new Date()
+    });
+    const [tempFilters, setTempFilters] = useState({ ...filters });
     const [lines, setLines] = useState([]);
     const [workShift, setWorkShift] = useState([]);
     const [machines, setMachines] = useState([]);
     const [eteTotal, setEteTotal] = useState(0);
     const [totalPieces, setTotalPieces] = useState(0);
     const [availabilityPercentage, setAvailabilityPercentage] = useState(85);
+    const [isLoading, setIsLoading] = useState({
+        lines: false,
+        machines: false,
+    });
     const [qualityData, setQualityData] = useState({
         labels: ["Productos", "Scrap"],
         datasets: [
@@ -85,28 +97,48 @@ const Dashboard = () => {
         hours: 0
     });
 
-    const [filters, setFilters] = useState({
-        linea: "todas",       
-        turno: "todos",       
-        maquina: "todas",     
-        fechaInicio: new Date(new Date().setDate(new Date().getDate() - 7)),
-        fechaFin: new Date()
-    });
-
-    const [tempFilters, setTempFilters] = useState({ ...filters });
-
     useEffect(() => {
         const getLines = async() => {
-            const response = await fetch(`${config.apiUrl}/ProductionForm/GetLines`);
-
-            if(!response.ok) throw new Error("Error al obtener la lista");
-
-            const data = await response.json();
-            setLines(data);
+            setIsLoading(prev => ({...prev, lines: true}));
+            try {
+                const response = await fetch(`${config.apiUrl}/ProductionForm/GetLines`);
+                if(!response.ok) throw new Error("Error al obtener la lista");
+                const data = await response.json();
+                setLines(data);
+            } catch (error) {
+                console.error("Error", error);
+            } finally {
+                setIsLoading(prev => ({...prev, lines: false}));
+            }
         }
 
         getLines();
     }, []);
+
+    useEffect(() => {
+        if(tempFilters.linea && tempFilters.linea != "todas"){
+            const fetchMachine = async() => {
+                try{
+                    setIsLoading(prev => ({...prev, machines: true}));
+                    setMachines([]);
+
+                    const response = await fetch(`${config.apiUrl}/ProductionForm/GetMachineByLine/${tempFilters.linea}`); // Cambiado a tempFilters.linea
+                    if(!response.ok) throw new Error("Error al obtener la maquina");
+                    const data = await response.json();
+                    setMachines(data);
+                }catch(error){
+                    console.error("Error", error);
+                }finally{
+                    setIsLoading(prev => ({...prev, machines: false}));
+                }
+            };
+
+            fetchMachine();
+        }else{
+            setMachines([]);
+            setTempFilters(prev => ({ ...prev, maquina: 'todas' }));
+        }
+    }, [tempFilters.linea]);
 
     useEffect(() => {
         const getWorkShifts = async() => {
@@ -122,17 +154,27 @@ const Dashboard = () => {
     }, []);
 
     useEffect(() => {
-        const getMachine = async() => {
-            const response = await fetch(`${config.apiUrl}/ProductionForm/GetMachines`);
+        const filtrosValidos = filters.fechaInicio && filters.fechaFin;
 
-            if(!response.ok) throw new Error("Error al obtener la lista");
+        if (!filtrosValidos) return;
 
-            const data = await response.json();
-            setMachines(data);
+        const loadAllData = async () => {
+            try {
+                await Promise.all([
+                    loadQualityData(),
+                    loadEfficiencyData(),
+                    loadAvailabilityData(),
+                    loadOeeData(),
+                    loadDeadTimeData(),
+                    loadMetrics()
+                ]);
+            } catch (error) {
+                console.error("Error loading data:", error);
+            }
         };
 
-        getMachine();
-    }, []);
+        loadAllData();
+    }, [filters]);
 
     const applyFilters = () => {
         if (!tempFilters.fechaInicio || !tempFilters.fechaFin) {
@@ -485,29 +527,6 @@ const Dashboard = () => {
             console.error("Error loading metrics: ", error);
         }
     };
-
-    useEffect(() => {
-        const filtrosValidos = filters.fechaInicio && filters.fechaFin;
-
-        if (!filtrosValidos) return;
-
-        const loadAllData = async () => {
-            try {
-                await Promise.all([
-                    loadQualityData(),
-                    loadEfficiencyData(),
-                    loadAvailabilityData(),
-                    loadOeeData(),
-                    loadDeadTimeData(),
-                    loadMetrics()
-                ]);
-            } catch (error) {
-                console.error("Error loading data:", error);
-            }
-        };
-
-        loadAllData();
-    }, [filters]);
 
     const barChartDeadTimes = {
         responsive: true,
