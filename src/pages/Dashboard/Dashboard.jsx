@@ -3,6 +3,7 @@ import { Doughnut, Bar } from "react-chartjs-2";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { da, es } from "date-fns/locale";
+import { donutQaulityOptions, donutAvailabilityOptions, dounutEfficiencyOptions, barChartDeadTimes } from "../../utils/donutConfig";
 import DatePicker from "react-datepicker";
 import config from "../../../config";
 import "react-datepicker/dist/react-datepicker.css";
@@ -116,27 +117,34 @@ const Dashboard = () => {
     }, []);
 
     useEffect(() => {
-        if(tempFilters.linea && tempFilters.linea != "todas"){
+        if(tempFilters.linea && tempFilters.linea !== "todas"){
             const fetchMachine = async() => {
-                try{
+                try {
                     setIsLoading(prev => ({...prev, machines: true}));
                     setMachines([]);
-
-                    const response = await fetch(`${config.apiUrl}/ProductionForm/GetMachineByLine/${tempFilters.linea}`); // Cambiado a tempFilters.linea
-                    if(!response.ok) throw new Error("Error al obtener la maquina");
+                    
+                    const response = await fetch(`${config.apiUrl}/ProductionForm/GetMachineByLine/${tempFilters.linea}`);
+                    if(!response.ok) throw new Error("Error al obtener máquinas");
+                    
                     const data = await response.json();
                     setMachines(data);
-                }catch(error){
-                    console.error("Error", error);
-                }finally{
+                    
+                    if(tempFilters.maquina !== "todas" && !data.some(m => m.id === tempFilters.maquina)) {
+                        setTempFilters(prev => ({...prev, maquina: "todas"}));
+                    }
+                } catch(error) {
+                    console.error("Error:", error);
+                } finally {
                     setIsLoading(prev => ({...prev, machines: false}));
                 }
             };
-
+            
             fetchMachine();
-        }else{
+        } else {
             setMachines([]);
-            setTempFilters(prev => ({ ...prev, maquina: 'todas' }));
+            if(tempFilters.maquina !== "todas") {
+                setTempFilters(prev => ({...prev, maquina: "todas"}));
+            }
         }
     }, [tempFilters.linea]);
 
@@ -160,6 +168,7 @@ const Dashboard = () => {
 
         const loadAllData = async () => {
             try {
+                setIsLoading(prev => ({...prev, general: true}));
                 await Promise.all([
                     loadQualityData(),
                     loadEfficiencyData(),
@@ -170,6 +179,8 @@ const Dashboard = () => {
                 ]);
             } catch (error) {
                 console.error("Error loading data:", error);
+            } finally {
+                setIsLoading(prev => ({...prev, general: false}));
             }
         };
 
@@ -177,12 +188,18 @@ const Dashboard = () => {
     }, [filters]);
 
     const applyFilters = () => {
-        if (!tempFilters.fechaInicio || !tempFilters.fechaFin) {
-            alert("Selecciona un rango de fechas válido");
-            return;
-        }
+        // if (!tempFilters.fechaInicio || !tempFilters.fechaFin) {
+        //     alert("Selecciona un rango de fechas válido");
+        //     return;
+        // }
 
-        setFilters(tempFilters);
+        // const fechaFin = new Date(tempFilters.fechaFin);
+        // fechaFin.setHours(23, 59, 59, 999);
+
+        setFilters({
+            ...tempFilters,
+            // fechaFin: fechaFin
+        });
     };
 
     const cleanFilters = () => {
@@ -215,15 +232,12 @@ const Dashboard = () => {
                 params.append('machineId', filters.maquina);
             }
             
-            if (filters.fechaInicio) {
-                params.append('startDate', new Date(filters.fechaInicio).toISOString());
-            }
-            
-            if (filters.fechaFin) {
-                const endDate = new Date(filters.fechaFin);
-                endDate.setHours(23, 59, 59, 999);
-                params.append('endDate', endDate.toISOString());
-            }
+            // if (filters.fechaInicio && filters.fechaFin && applyFilters) {
+            //     params.append('startDate', new Date(filters.fechaInicio).toISOString());
+            //     const endDate = new Date(filters.fechaFin);
+            //     endDate.setHours(23, 59, 59, 999);
+            //     params.append('endDate', endDate.toISOString());
+            // }
 
             const response = await fetch(`${config.apiUrl}/ProductionForm/GetQualityData?${params}`);
             const data = await response.json();
@@ -268,15 +282,12 @@ const Dashboard = () => {
                 params.append('shiftId', filters.turno);
             }
             
-            if (filters.fechaInicio) {
-                params.append('startDate', new Date(filters.fechaInicio).toISOString());
-            }
-            
-            if (filters.fechaFin) {
-                const endDate = new Date(filters.fechaFin);
-                endDate.setHours(23, 59, 59, 999);
-                params.append('endDate', endDate.toISOString());
-            }
+            // if (filters.fechaInicio && filters.fechaFin && applyFilters) {
+            //     params.append('startDate', new Date(filters.fechaInicio).toISOString());
+            //     const endDate = new Date(filters.fechaFin);
+            //     endDate.setHours(23, 59, 59, 999);
+            //     params.append('endDate', endDate.toISOString());
+            // }
 
             const response = await fetch(`${config.apiUrl}/ProductionForm/GetEfficiencyData?${params.toString()}`);
             const data = await response.json();
@@ -326,9 +337,12 @@ const Dashboard = () => {
                 params.append('shiftId', filters.turno);
             }
 
-            if (filters.fechaInicio) {
-                params.append('startDate', new Date(filters.fechaInicio).toISOString());
-            }
+            // if (filters.fechaInicio && filters.fechaFin && applyFilters) {
+            //     params.append('startDate', new Date(filters.fechaInicio).toISOString());
+            //     const endDate = new Date(filters.fechaFin);
+            //     endDate.setHours(23, 59, 59, 999);
+            //     params.append('endDate', endDate.toISOString());
+            // }
             
             const response = await fetch(`${config.apiUrl}/ProductionForm/GetAvailabilityData?${params}`);
             const data = await response.json();
@@ -362,7 +376,7 @@ const Dashboard = () => {
             setavailabilityData({
                 labels: ["Tiempo disponible", "Tiempo muerto"],
                 datasets: [{
-                    data: [85, 15],
+                    data: [0, 0],
                     backgroundColor: ["#3B82F6", "#F97316"],
                     borderWidth: 0
                 }]
@@ -384,15 +398,16 @@ const Dashboard = () => {
                 params.append('shiftId', filters.turno);
             }
             
-            if (filters.fechaInicio) {
-                params.append('startDate', new Date(filters.fechaInicio).toISOString());
+            if (filters.maquina && filters.maquina !== "todas") { 
+                params.append('machineId', filters.maquina);
             }
-            
-            if (filters.fechaFin) {
-                const endDate = new Date(filters.fechaFin);
-                endDate.setHours(23, 59, 59, 999);
-                params.append('endDate', endDate.toISOString());
-            }
+
+            // if (filters.fechaInicio && filters.fechaFin && applyFilters) {
+            //     params.append('startDate', new Date(filters.fechaInicio).toISOString());
+            //     const endDate = new Date(filters.fechaFin);
+            //     endDate.setHours(23, 59, 59, 999);
+            //     params.append('endDate', endDate.toISOString());
+            // }
 
             const response = await fetch(`${config.apiUrl}/ProductionForm/GetDeadTimeByReasonLast6Days?${params}`);
             const data = await response.json();
@@ -441,15 +456,12 @@ const Dashboard = () => {
                 params.append("shiftId", filters.turno);
             }
 
-            if(filters.fechaInicio){
-                params.append("startDate", new Date(filters.fechaInicio).toISOString());
-            }
-
-            if(filters.fechaFin){
-                const endDate = new Date(filters.fechaFin);
-                endDate.setHours(23, 59, 59, 999);
-                params.append("endDate", endDate.toISOString());
-            }
+            // if (filters.fechaInicio && filters.fechaFin && applyFilters) {
+            //     params.append('startDate', new Date(filters.fechaInicio).toISOString());
+            //     const endDate = new Date(filters.fechaFin);
+            //     endDate.setHours(23, 59, 59, 999);
+            //     params.append('endDate', endDate.toISOString());
+            // }
 
             if(filters.maquina && filters.maquina !== "todas"){
                 params.append("machineId", filters.maquina);
@@ -504,126 +516,44 @@ const Dashboard = () => {
                 params.append('lineId', filters.linea);
             }
             
-            if (filters.fechaInicio) {
-                params.append('startDate', new Date(filters.fechaInicio).toISOString());
+            if (filters.maquina && filters.maquina !== "todas") {
+                params.append('machineId', filters.maquina);
             }
+
+            if(filters.turno && filters.turno !== "todos"){
+                params.append("shiftId", filters.turno);
+            }
+
+            // if (filters.fechaInicio) {
+            //     params.append('startDate', new Date(filters.fechaInicio).toISOString());
+            // }
             
-            if (filters.fechaFin) {
-                const endDate = new Date(filters.fechaFin);
-                endDate.setHours(23, 59, 59, 999);
-                params.append('endDate', endDate.toISOString());
-            }
+            // if (filters.fechaFin) {
+            //     const endDate = new Date(filters.fechaFin);
+            //     endDate.setHours(23, 59, 59, 999);
+            //     params.append('endDate', endDate.toISOString());
+            // }
 
             const response = await fetch(`${config.apiUrl}/ProductionForm/GetKeyMetrics?${params}`);
             const data = await response.json();
+            console.log("Datos recibidos de la API", data);
 
             setMetrics({
-                deadTime: data.deadTime,
-                deadTimeVsAvg: data.deadTimeVsAvg,
-                scrap: data.scrap,
-                scrapVsAvg: data.scrapVsAvg
+                deadTime: data.deadTime || 0,
+                deadTimeVsAvg: data.deadTimeVsAvg || 0,
+                scrap: data.scrap || 0,
+                scrapVsAvg: data.scrapVsAvg || 0,
+                metadata: data.metadata || {
+                    startDate: null,
+                    endDate: null,
+                    lineFilter: null,
+                    machineFilter: null,
+                    shiftFilter: null
+                }
             });
         }catch(error){
             console.error("Error loading metrics: ", error);
         }
-    };
-
-    const barChartDeadTimes = {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-            x: {
-                grid: {
-                    display: false,
-                },
-            },
-            y: {
-                beginAtZero: true,
-                title: {
-                    display: true,
-                    text: 'Minutos'
-                },
-                grid: {
-                    color: "#E5E7EB",
-                },
-            },
-        },
-        plugins: {
-            legend: {
-                position: "top",
-            },
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        return `${context.dataset.label}: ${context.raw} min`;
-                    }
-                }
-            }
-        },
-    };
-
-    const donutQaulityOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'bottom',
-            },
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        const label = context.label || '';
-                        const value = context.raw || 0;
-                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                        const percentage = Math.round((value / total) * 100);
-                        return `${label}: ${value} (${percentage}%)`;
-                    }
-                }
-            }
-        }
-    };
-
-    const dounutEfficiencyOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'bottom',
-            },
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        return `${context.label}: ${context.raw}%`;
-                    }
-                }
-            }
-        },
-        cutout: '70%'
-    };
-
-    const donutAvailabilityOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: "70%",
-        plugins: {
-            legend: {
-                position: "bottom",
-                labels: {
-                    boxWidth: 12,
-                    padding: 20,
-                    font: {
-                        family: "Inter, sans-serif",
-                    },
-                },
-            },
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        return `${context.label}: ${context.raw}%`;
-                    }
-                }
-            },
-        },
     };
 
     const currentDate = format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es });
