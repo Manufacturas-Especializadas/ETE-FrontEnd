@@ -7,6 +7,7 @@ import { donutQaulityOptions, donutAvailabilityOptions, dounutEfficiencyOptions,
 import DatePicker from "react-datepicker";
 import config from "../../../config";
 import "react-datepicker/dist/react-datepicker.css";
+import NoDataMessage from "../../components/NoDataMessage/NoDataMessage";
 
 ChartJs.register(ArcElement, Tooltip, Legend, BarElement, CategoryScale, LinearScale);
 
@@ -536,7 +537,8 @@ const Dashboard = () => {
 
             const response = await fetch(`${config.apiUrl}/ProductionForm/GetKeyMetrics?${params}`);
             const data = await response.json();
-            console.log("Datos recibidos de la API", data);
+
+            const hasData = data.deadTime !== undefined || data.scrap !== undefined;
 
             setMetrics({
                 deadTime: data.deadTime || 0,
@@ -549,10 +551,15 @@ const Dashboard = () => {
                     lineFilter: null,
                     machineFilter: null,
                     shiftFilter: null
-                }
+                },
+                hasData
             });
         }catch(error){
             console.error("Error loading metrics: ", error);
+            setMetrics(prev => ({
+                ...prev,
+                hasData: false
+            }));
         }
     };
 
@@ -696,7 +703,13 @@ const Dashboard = () => {
                             </div>
                         </div>
                         <div className="h-90 flex justify-center">
-                            <Doughnut data={ eteGeneralData } options={ donutAvailabilityOptions } />
+                            {
+                                eteGeneralData.datasets[0].data.every(val => val === 0) ? (
+                                    <NoDataMessage message="No hay datos de ETE para los filtros seleccionados"/>
+                                ) : (
+                                    <Doughnut data={ eteGeneralData } options={ donutAvailabilityOptions } />
+                                )
+                            }
                         </div>
                         <div className="mt-4 grid grid-cols-3 gap-4 text-center text-sm text-gray-500">
                             <div>
@@ -731,13 +744,13 @@ const Dashboard = () => {
                             </span>
                         </div>
                         <div className="h-64 flex justify-center">
-                            {availabilityData && availabilityData.datasets ? (
-                                <Doughnut data={ availabilityData } options={ donutAvailabilityOptions } />
-                            ) : (
-                                <div className="flex items-center justify-center h-full">
-                                    <span>Cargando datos...</span>
-                                </div>
-                            )}
+                                {
+                                    availabilityData.datasets[0].data.every(val => val === 0) ? (
+                                        <NoDataMessage message="No hay datos de disponibilidad para los filtros seleccionados"/>
+                                    ) : (
+                                        <Doughnut data={ availabilityData } options={ donutAvailabilityOptions } />
+                                    )
+                                }
                         </div>
                         <div className="mt-4 flex justify-between text-sm text-gray-500">
                             <span>Tiempo muerto total</span>
@@ -760,7 +773,13 @@ const Dashboard = () => {
                             </span>
                         </div>
                         <div className="h-64 flex justify-center">
-                            <Doughnut data={ efficiencyData } options={ dounutEfficiencyOptions }/>
+                            {
+                                efficiencyData.datasets[0].data.every(val => val === 0) ? (
+                                    <NoDataMessage message="No hay datos de eficiencia para los filtros seleccionados"/>
+                                ) : (
+                                    <Doughnut data={ efficiencyData } options={ dounutEfficiencyOptions }/>
+                                )
+                            }
                         </div>
                         <div className="mt-4 flex justify-between text-sm text-gray-500">
                             <span>Velocidad ideal</span>
