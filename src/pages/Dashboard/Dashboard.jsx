@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { da, es } from "date-fns/locale";
 import { donutQaulityOptions, donutAvailabilityOptions, dounutEfficiencyOptions, barChartDeadTimes } from "../../utils/donutConfig";
-import DatePicker from "react-datepicker";
 import config from "../../../config";
 import "react-datepicker/dist/react-datepicker.css";
 import NoDataMessage from "../../components/NoDataMessage/NoDataMessage";
@@ -13,10 +12,10 @@ ChartJs.register(ArcElement, Tooltip, Legend, BarElement, CategoryScale, LinearS
 
 const Dashboard = () => {
     const [filters, setFilters] = useState({
-        linea: "todas",       
-        turno: "todos",       
-        maquina: "todas",     
-        fechaInicio: new Date(new Date().setDate(new Date().getDate() - 7)),
+        linea: "todas",
+        turno: "todos",
+        maquina: "todas",
+        fechaInicio: new Date(new Date().setDate(new Date().getDate() - 30)),
         fechaFin: new Date()
     });
     const [tempFilters, setTempFilters] = useState({ ...filters });
@@ -60,7 +59,7 @@ const Dashboard = () => {
             }
         ]
     });
-    const [eteGeneralData, setEteGeneralData]  = useState({
+    const [eteGeneralData, setEteGeneralData] = useState({
         labels: ["Disponibildad", "Eficiencia", "Calidad"],
         datasets: [
             {
@@ -90,7 +89,7 @@ const Dashboard = () => {
         deadTimeVsAvg: 0,
         scrap: 0,
         scrapVsAvg: 0
-    });  
+    });
 
     const [stats, setStats] = useState({
         produced: 0,
@@ -99,18 +98,32 @@ const Dashboard = () => {
         hours: 0
     });
 
+    const formatDateForInput = (date) => {
+        if (!date) return '';
+        const d = new Date(date);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const parseDateFromInput = (dateString) => {
+        if (!dateString) return null;
+        return new Date(dateString);
+    };
+
     useEffect(() => {
-        const getLines = async() => {
-            setIsLoading(prev => ({...prev, lines: true}));
+        const getLines = async () => {
+            setIsLoading(prev => ({ ...prev, lines: true }));
             try {
                 const response = await fetch(`${config.apiUrl}/ProductionForm/GetLines`);
-                if(!response.ok) throw new Error("Error al obtener la lista");
+                if (!response.ok) throw new Error("Error al obtener la lista");
                 const data = await response.json();
                 setLines(data);
             } catch (error) {
                 console.error("Error", error);
             } finally {
-                setIsLoading(prev => ({...prev, lines: false}));
+                setIsLoading(prev => ({ ...prev, lines: false }));
             }
         }
 
@@ -118,42 +131,42 @@ const Dashboard = () => {
     }, []);
 
     useEffect(() => {
-        if(tempFilters.linea && tempFilters.linea !== "todas"){
-            const fetchMachine = async() => {
+        if (tempFilters.linea && tempFilters.linea !== "todas") {
+            const fetchMachine = async () => {
                 try {
-                    setIsLoading(prev => ({...prev, machines: true}));
+                    setIsLoading(prev => ({ ...prev, machines: true }));
                     setMachines([]);
-                    
+
                     const response = await fetch(`${config.apiUrl}/ProductionForm/GetMachineByLine/${tempFilters.linea}`);
-                    if(!response.ok) throw new Error("Error al obtener máquinas");
-                    
+                    if (!response.ok) throw new Error("Error al obtener máquinas");
+
                     const data = await response.json();
                     setMachines(data);
-                    
-                    if(tempFilters.maquina !== "todas" && !data.some(m => m.id === tempFilters.maquina)) {
-                        setTempFilters(prev => ({...prev, maquina: "todas"}));
+
+                    if (tempFilters.maquina !== "todas" && !data.some(m => m.id === tempFilters.maquina)) {
+                        setTempFilters(prev => ({ ...prev, maquina: "todas" }));
                     }
-                } catch(error) {
+                } catch (error) {
                     console.error("Error:", error);
                 } finally {
-                    setIsLoading(prev => ({...prev, machines: false}));
+                    setIsLoading(prev => ({ ...prev, machines: false }));
                 }
             };
-            
+
             fetchMachine();
         } else {
             setMachines([]);
-            if(tempFilters.maquina !== "todas") {
-                setTempFilters(prev => ({...prev, maquina: "todas"}));
+            if (tempFilters.maquina !== "todas") {
+                setTempFilters(prev => ({ ...prev, maquina: "todas" }));
             }
         }
     }, [tempFilters.linea]);
 
     useEffect(() => {
-        const getWorkShifts = async() => {
+        const getWorkShifts = async () => {
             const response = await fetch(`${config.apiUrl}/ProductionForm/GetWorkShifts`);
 
-            if(!response.ok) throw new Error("Error al obtener la lista");
+            if (!response.ok) throw new Error("Error al obtener la lista");
 
             const data = await response.json();
             setWorkShift(data);
@@ -169,7 +182,7 @@ const Dashboard = () => {
 
         const loadAllData = async () => {
             try {
-                setIsLoading(prev => ({...prev, general: true}));
+                setIsLoading(prev => ({ ...prev, general: true }));
                 await Promise.all([
                     loadQualityData(),
                     loadEfficiencyData(),
@@ -181,7 +194,7 @@ const Dashboard = () => {
             } catch (error) {
                 console.error("Error loading data:", error);
             } finally {
-                setIsLoading(prev => ({...prev, general: false}));
+                setIsLoading(prev => ({ ...prev, general: false }));
             }
         };
 
@@ -194,12 +207,12 @@ const Dashboard = () => {
         //     return;
         // }
 
-        // const fechaFin = new Date(tempFilters.fechaFin);
-        // fechaFin.setHours(23, 59, 59, 999);
+        const fechaFin = new Date(tempFilters.fechaFin);
+        fechaFin.setHours(23, 59, 59, 999);
 
         setFilters({
             ...tempFilters,
-            // fechaFin: fechaFin
+            fechaFin: fechaFin
         });
     };
 
@@ -217,32 +230,32 @@ const Dashboard = () => {
     };
 
 
-    const loadQualityData = async() => {
+    const loadQualityData = async () => {
         try {
             const params = new URLSearchParams();
 
             if (filters.linea && filters.linea !== "todas") {
                 params.append('lineId', filters.linea);
             }
-            
+
             if (filters.turno && filters.turno !== "todos") {
                 params.append('shiftId', filters.turno);
             }
-            
+
             if (filters.maquina && filters.maquina !== "todas") {
                 params.append('machineId', filters.maquina);
             }
-            
-            // if (filters.fechaInicio && filters.fechaFin && applyFilters) {
-            //     params.append('startDate', new Date(filters.fechaInicio).toISOString());
-            //     const endDate = new Date(filters.fechaFin);
-            //     endDate.setHours(23, 59, 59, 999);
-            //     params.append('endDate', endDate.toISOString());
-            // }
+
+            if (filters.fechaInicio && filters.fechaFin && applyFilters) {
+                params.append('startDate', new Date(filters.fechaInicio).toISOString());
+                const endDate = new Date(filters.fechaFin);
+                endDate.setHours(23, 59, 59, 999);
+                params.append('endDate', endDate.toISOString());
+            }
 
             const response = await fetch(`${config.apiUrl}/ProductionForm/GetQualityData?${params}`);
             const data = await response.json();
-        
+
             const goodPieces = data.goodPieces || 0;
             const scrapPieces = data.scrap || 0;
             const totalPieces = data.totalPieces || 0;
@@ -255,9 +268,9 @@ const Dashboard = () => {
                     borderWidth: 0
                 }]
             });
-            
+
             setTotalPieces(totalPieces);
-        } catch(error) {
+        } catch (error) {
             console.error("Error loading quality data: ", error);
             setQualityData({
                 labels: ["Piezas buenas", "Scrap"],
@@ -278,17 +291,17 @@ const Dashboard = () => {
             if (filters.linea && filters.linea !== "todas") {
                 params.append('lineId', filters.linea);
             }
-            
+
             if (filters.turno && filters.turno !== "todos") {
                 params.append('shiftId', filters.turno);
             }
-            
-            // if (filters.fechaInicio && filters.fechaFin && applyFilters) {
-            //     params.append('startDate', new Date(filters.fechaInicio).toISOString());
-            //     const endDate = new Date(filters.fechaFin);
-            //     endDate.setHours(23, 59, 59, 999);
-            //     params.append('endDate', endDate.toISOString());
-            // }
+
+            if (filters.fechaInicio && filters.fechaFin && applyFilters) {
+                params.append('startDate', new Date(filters.fechaInicio).toISOString());
+                const endDate = new Date(filters.fechaFin);
+                endDate.setHours(23, 59, 59, 999);
+                params.append('endDate', endDate.toISOString());
+            }
 
             const response = await fetch(`${config.apiUrl}/ProductionForm/GetEfficiencyData?${params.toString()}`);
             const data = await response.json();
@@ -317,20 +330,20 @@ const Dashboard = () => {
                 efficiency: efficiencyPercentage,
                 hours: 1
             });
-        } catch(error) {
+        } catch (error) {
             console.error("Error loading efficiency data: ", error);
         }
     };
 
-    const loadAvailabilityData = async() => {
+    const loadAvailabilityData = async () => {
         try {
             const params = new URLSearchParams();
 
-            if (filters.linea && filters.linea !== "todas") { 
+            if (filters.linea && filters.linea !== "todas") {
                 params.append('lineId', filters.linea);
             }
 
-            if (filters.maquina && filters.maquina !== "todas") { 
+            if (filters.maquina && filters.maquina !== "todas") {
                 params.append('machineId', filters.maquina);
             }
 
@@ -338,13 +351,13 @@ const Dashboard = () => {
                 params.append('shiftId', filters.turno);
             }
 
-            // if (filters.fechaInicio && filters.fechaFin && applyFilters) {
-            //     params.append('startDate', new Date(filters.fechaInicio).toISOString());
-            //     const endDate = new Date(filters.fechaFin);
-            //     endDate.setHours(23, 59, 59, 999);
-            //     params.append('endDate', endDate.toISOString());
-            // }
-            
+            if (filters.fechaInicio && filters.fechaFin && applyFilters) {
+                params.append('startDate', new Date(filters.fechaInicio).toISOString());
+                const endDate = new Date(filters.fechaFin);
+                endDate.setHours(23, 59, 59, 999);
+                params.append('endDate', endDate.toISOString());
+            }
+
             const response = await fetch(`${config.apiUrl}/ProductionForm/GetAvailabilityData?${params}`);
             const data = await response.json();
 
@@ -386,29 +399,28 @@ const Dashboard = () => {
         }
     };
 
-
-    const loadDeadTimeData = async() => {
+    const loadDeadTimeData = async () => {
         try {
             const params = new URLSearchParams();
-            
+
             if (filters.linea && filters.linea !== "todas") {
                 params.append('lineId', filters.linea);
             }
-            
+
             if (filters.turno && filters.turno !== "todos") {
                 params.append('shiftId', filters.turno);
             }
-            
-            if (filters.maquina && filters.maquina !== "todas") { 
+
+            if (filters.maquina && filters.maquina !== "todas") {
                 params.append('machineId', filters.maquina);
             }
 
-            // if (filters.fechaInicio && filters.fechaFin && applyFilters) {
-            //     params.append('startDate', new Date(filters.fechaInicio).toISOString());
-            //     const endDate = new Date(filters.fechaFin);
-            //     endDate.setHours(23, 59, 59, 999);
-            //     params.append('endDate', endDate.toISOString());
-            // }
+            if (filters.fechaInicio && filters.fechaFin && applyFilters) {
+                params.append('startDate', new Date(filters.fechaInicio).toISOString());
+                const endDate = new Date(filters.fechaFin);
+                endDate.setHours(23, 59, 59, 999);
+                params.append('endDate', endDate.toISOString());
+            }
 
             const response = await fetch(`${config.apiUrl}/ProductionForm/GetDeadTimeByReasonLast6Days?${params}`);
             const data = await response.json();
@@ -427,7 +439,7 @@ const Dashboard = () => {
                 totalMinutes: data.totalMinutes,
                 averageMinutes: data.averageMinutes.toFixed(1)
             });
-        } catch(error) {
+        } catch (error) {
             console.error("Error loading dead time data: ", error);
             setDeadTimeData({
                 labels: [],
@@ -449,22 +461,22 @@ const Dashboard = () => {
         try {
             const params = new URLSearchParams();
 
-            if(filters.linea && filters.linea !== "todas"){
+            if (filters.linea && filters.linea !== "todas") {
                 params.append('lineId', filters.linea);
             }
 
-            if(filters.turno && filters.turno !== "todos"){
+            if (filters.turno && filters.turno !== "todos") {
                 params.append("shiftId", filters.turno);
             }
 
-            // if (filters.fechaInicio && filters.fechaFin && applyFilters) {
-            //     params.append('startDate', new Date(filters.fechaInicio).toISOString());
-            //     const endDate = new Date(filters.fechaFin);
-            //     endDate.setHours(23, 59, 59, 999);
-            //     params.append('endDate', endDate.toISOString());
-            // }
+            if (filters.fechaInicio && filters.fechaFin && applyFilters) {
+                params.append('startDate', new Date(filters.fechaInicio).toISOString());
+                const endDate = new Date(filters.fechaFin);
+                endDate.setHours(23, 59, 59, 999);
+                params.append('endDate', endDate.toISOString());
+            }
 
-            if(filters.maquina && filters.maquina !== "todas"){
+            if (filters.maquina && filters.maquina !== "todas") {
                 params.append("machineId", filters.maquina);
             }
 
@@ -495,7 +507,7 @@ const Dashboard = () => {
                 }]
             });
 
-        } catch(error) {
+        } catch (error) {
             console.error("Error loading OEE data: ", error);
             setEteTotal(0);
             setEteGeneralData({
@@ -509,31 +521,31 @@ const Dashboard = () => {
         }
     };
 
-    const loadMetrics = async() => {
-        try{
+    const loadMetrics = async () => {
+        try {
             const params = new URLSearchParams();
 
             if (filters.linea && filters.linea !== "todas") {
                 params.append('lineId', filters.linea);
             }
-            
+
             if (filters.maquina && filters.maquina !== "todas") {
                 params.append('machineId', filters.maquina);
             }
 
-            if(filters.turno && filters.turno !== "todos"){
+            if (filters.turno && filters.turno !== "todos") {
                 params.append("shiftId", filters.turno);
             }
 
-            // if (filters.fechaInicio) {
-            //     params.append('startDate', new Date(filters.fechaInicio).toISOString());
-            // }
-            
-            // if (filters.fechaFin) {
-            //     const endDate = new Date(filters.fechaFin);
-            //     endDate.setHours(23, 59, 59, 999);
-            //     params.append('endDate', endDate.toISOString());
-            // }
+            if (filters.fechaInicio) {
+                params.append('startDate', new Date(filters.fechaInicio).toISOString());
+            }
+
+            if (filters.fechaFin) {
+                const endDate = new Date(filters.fechaFin);
+                endDate.setHours(23, 59, 59, 999);
+                params.append('endDate', endDate.toISOString());
+            }
 
             const response = await fetch(`${config.apiUrl}/ProductionForm/GetKeyMetrics?${params}`);
             const data = await response.json();
@@ -554,7 +566,7 @@ const Dashboard = () => {
                 },
                 hasData
             });
-        }catch(error){
+        } catch (error) {
             console.error("Error loading metrics: ", error);
             setMetrics(prev => ({
                 ...prev,
@@ -566,7 +578,7 @@ const Dashboard = () => {
     const currentDate = format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es });
 
     return (
-        <> 
+        <>
             <div className="min-h-screen bg-gray-50 p-4 md:p-6">
                 <div className="mb-6 flex flex-col justify-between md:flex-row md:items-center">
                     <div>
@@ -576,7 +588,7 @@ const Dashboard = () => {
                     <div className="mt-4 md:mt-0">
                         <div className="rounded-lg bg-white p-3 shadow-sm">
                             <p className="text-sm font-medium text-gray-500">Fecha</p>
-                            <p className="text-lg font-semibold text-gray-800">{ currentDate }</p>
+                            <p className="text-lg font-semibold text-gray-800">{currentDate}</p>
                         </div>
                     </div>
                 </div>
@@ -588,17 +600,17 @@ const Dashboard = () => {
                             <label className="mb-1 block text-sm font-medium text-gray-700">
                                 Líneas
                             </label>
-                            <select 
+                            <select
                                 id="linea"
                                 name="linea"
-                                value={ tempFilters.linea }
+                                value={tempFilters.linea}
                                 onChange={(e) => setTempFilters(prev => ({ ...prev, linea: e.target.value }))}
                                 className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
                             >
                                 <option value="todas">Todas las líneas</option>
                                 {Array.isArray(lines) && lines.map((item) => (
-                                    <option key={ item.id } value={ item.id }>
-                                        { item.name }
+                                    <option key={item.id} value={item.id}>
+                                        {item.name}
                                     </option>
                                 ))}
                             </select>
@@ -611,7 +623,7 @@ const Dashboard = () => {
                             <select
                                 id="maquina"
                                 name="maquina"
-                                value={ tempFilters.maquina }
+                                value={tempFilters.maquina}
                                 onChange={(e) => setTempFilters(prev => ({ ...prev, maquina: e.target.value }))}
                                 className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
                             >
@@ -628,10 +640,10 @@ const Dashboard = () => {
                             <label className="mb-1 block text-sm font-medium text-gray-700">
                                 Turno
                             </label>
-                            <select 
+                            <select
                                 id="turno"
                                 name="turno"
-                                value={ tempFilters.turno }
+                                value={tempFilters.turno}
                                 onChange={(e) => setTempFilters(prev => ({ ...prev, turno: e.target.value }))}
                                 className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
                             >
@@ -649,23 +661,21 @@ const Dashboard = () => {
                                 Rango de fechas
                             </label>
                             <div className="flex items-center space-x-2">
-                                <DatePicker
-                                    selected={tempFilters.fechaInicio}
-                                    onChange={(date) => setTempFilters(prev => ({ ...prev, fechaInicio: date }))}
-                                    selectsStart
-                                    startDate={tempFilters.fechaInicio}
-                                    endDate={tempFilters.fechaFin}
-                                    className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                                <input
+                                    type="date"
+                                    value={formatDateForInput(tempFilters.fechaInicio)}
+                                    onChange={(e) => setTempFilters(prev => ({ ...prev, fechaInicio: parseDateFromInput(e.target.value) }))}
+                                    className="block rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900
+                                    focus:border-blue-500"
                                 />
                                 <span className="text-gray-500">a</span>
-                                <DatePicker
-                                    selected={tempFilters.fechaFin}
-                                    onChange={(date) => setTempFilters(prev => ({ ...prev, fechaFin: date }))}
-                                    selectsEnd
-                                    startDate={tempFilters.fechaInicio}
-                                    endDate={tempFilters.fechaFin}
-                                    minDate={tempFilters.fechaInicio}
-                                    className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                                <input
+                                    type="date"
+                                    value={formatDateForInput(tempFilters.fechaFin)}
+                                    onChange={(e) => setTempFilters(prev => ({ ...prev, fechaFin: parseDateFromInput(e.target.value) }))}
+                                    min={formatDateForInput(tempFilters.fechaInicio)}
+                                    className="block rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900
+                                    focus:border-blue-500 focus:ring-blue-500"
                                 />
                             </div>
                         </div>
@@ -673,13 +683,13 @@ const Dashboard = () => {
 
                     <div className="mt-4 flex justify-end gap-5">
                         <button
-                            onClick={ cleanFilters }
+                            onClick={cleanFilters}
                             className="rounded bg-gray-600 px-4 py-2 text-white hover:bg-gray-700 hover:cursor-pointer"
                         >
                             Limpiar filtros
                         </button>
                         <button
-                            onClick={ applyFilters }
+                            onClick={applyFilters}
                             className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 hover:cursor-pointer"
                         >
                             Aplicar filtros
@@ -693,11 +703,10 @@ const Dashboard = () => {
                             <h2 className="text-lg font-semibold text-gray-800">ETE</h2>
                             <div className="flex items-center space-x-2">
                                 <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
-                                    { eteTotal }%
+                                    {eteTotal}%
                                 </span>
-                                <span className={`rounded-full px-3 py-1 text-sm font-medium ${
-                                    eteTotal >= 85 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                                }`}>
+                                <span className={`rounded-full px-3 py-1 text-sm font-medium ${eteTotal >= 85 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                                    }`}>
                                     Meta: 85%
                                 </span>
                             </div>
@@ -705,9 +714,9 @@ const Dashboard = () => {
                         <div className="h-90 flex justify-center">
                             {
                                 eteGeneralData.datasets[0].data.every(val => val === 0) ? (
-                                    <NoDataMessage message="No hay datos de ETE para los filtros seleccionados"/>
+                                    <NoDataMessage message="No hay datos de ETE para los filtros seleccionados" />
                                 ) : (
-                                    <Doughnut data={ eteGeneralData } options={ donutAvailabilityOptions } />
+                                    <Doughnut data={eteGeneralData} options={donutAvailabilityOptions} />
                                 )
                             }
                         </div>
@@ -715,19 +724,19 @@ const Dashboard = () => {
                             <div>
                                 <p>Disponibilidad</p>
                                 <p className="font-medium text-blue-600">
-                                    { eteGeneralData.datasets[0].data[0] }%
+                                    {eteGeneralData.datasets[0].data[0]}%
                                 </p>
                             </div>
                             <div>
                                 <p>Eficiencia</p>
                                 <p className="font-medium text-green-600">
-                                    { eteGeneralData.datasets[0].data[1] }%
+                                    {eteGeneralData.datasets[0].data[1]}%
                                 </p>
                             </div>
                             <div>
                                 <p>Calidad</p>
                                 <p className="font-medium text-yellow-600">
-                                    { eteGeneralData.datasets[0].data[2] }%
+                                    {eteGeneralData.datasets[0].data[2]}%
                                 </p>
                             </div>
                         </div>
@@ -740,23 +749,23 @@ const Dashboard = () => {
                             </h2>
                             <span className="rounded-full bg-blue-100 px-3 py-1 
                                 text-sm font-medium text-blue-800">
-                                { availabilityPercentage }%
+                                {availabilityPercentage}%
                             </span>
                         </div>
                         <div className="h-64 flex justify-center">
-                                {
-                                    availabilityData.datasets[0].data.every(val => val === 0) ? (
-                                        <NoDataMessage message="No hay datos de disponibilidad para los filtros seleccionados"/>
-                                    ) : (
-                                        <Doughnut data={ availabilityData } options={ donutAvailabilityOptions } />
-                                    )
-                                }
+                            {
+                                availabilityData.datasets[0].data.every(val => val === 0) ? (
+                                    <NoDataMessage message="No hay datos de disponibilidad para los filtros seleccionados" />
+                                ) : (
+                                    <Doughnut data={availabilityData} options={donutAvailabilityOptions} />
+                                )
+                            }
                         </div>
                         <div className="mt-4 flex justify-between text-sm text-gray-500">
                             <span>Tiempo muerto total</span>
                             <span className="font-medium">
-                                {availabilityData.datasets?.[0]?.data?.[1] ? 
-                                    `${Math.round((availabilityData.datasets[0].data[1] / 100) * 1440)} mins` : 
+                                {availabilityData.datasets?.[0]?.data?.[1] ?
+                                    `${Math.round((availabilityData.datasets[0].data[1] / 100) * 1440)} mins` :
                                     '0 mins'}
                             </span>
                         </div>
@@ -769,15 +778,15 @@ const Dashboard = () => {
                             </h2>
                             <span className="rounded-full bg-green-100 px-3 py-1 
                                 text-sm font-medium text-green-800">
-                                { stats.efficiency }%
+                                {stats.efficiency}%
                             </span>
                         </div>
                         <div className="h-64 flex justify-center">
                             {
                                 efficiencyData.datasets[0].data.every(val => val === 0) ? (
-                                    <NoDataMessage message="No hay datos de eficiencia para los filtros seleccionados"/>
+                                    <NoDataMessage message="No hay datos de eficiencia para los filtros seleccionados" />
                                 ) : (
-                                    <Doughnut data={ efficiencyData } options={ dounutEfficiencyOptions }/>
+                                    <Doughnut data={efficiencyData} options={dounutEfficiencyOptions} />
                                 )
                             }
                         </div>
@@ -804,13 +813,13 @@ const Dashboard = () => {
                             </h2>
                             <span className="rounded-full bg-yellow-100 px-3 py-1 
                                 text-sm font-medium text-yellow-800">
-                                {qualityData.datasets[0].data[0] > 0 ? 
-                                    Math.round((qualityData.datasets[0].data[0] / 
-                                    (qualityData.datasets[0].data[0] + qualityData.datasets[0].data[1])) * 100) + '%' : '0%'}
+                                {qualityData.datasets[0].data[0] > 0 ?
+                                    Math.round((qualityData.datasets[0].data[0] /
+                                        (qualityData.datasets[0].data[0] + qualityData.datasets[0].data[1])) * 100) + '%' : '0%'}
                             </span>
                         </div>
                         <div className="h-64 flex justify-center">
-                            <Doughnut data={ qualityData } options={ donutQaulityOptions } />
+                            <Doughnut data={qualityData} options={donutQaulityOptions} />
                         </div>
                         <div className="mt-4 flex justify-between text-sm text-gray-500">
                             <span>Total producido</span>
@@ -818,7 +827,7 @@ const Dashboard = () => {
                         </div>
                     </div>
                 </div>
-                
+
                 <div className="mb-6 rounded-xl bg-white p-5 shadow-sm">
                     <h2 className="mb-4 text-lg font-semibold text-gray-800">Métricas Clave</h2>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -829,7 +838,7 @@ const Dashboard = () => {
                                         Tiempo muerto
                                     </p>
                                     <p className="mt-1 text-2xl font-bold text-gray-800">
-                                        { metrics.deadTime } min
+                                        {metrics.deadTime} min
                                     </p>
                                 </div>
                                 <div className="rounded-full bg-red-100 p-3">
@@ -842,7 +851,7 @@ const Dashboard = () => {
                                 <div className="flex items-center justify-between text-sm text-gray-500">
                                     <span>Vs. promedio</span>
                                     <span className="font-medium text-red-600">
-                                        { metrics.deadTimeVsAvg >= 0 ? '+' : '' } { metrics.deadTimeVsAvg.toFixed(1) } min
+                                        {metrics.deadTimeVsAvg >= 0 ? '+' : ''} {metrics.deadTimeVsAvg.toFixed(1)} min
                                     </span>
                                 </div>
                             </div>
@@ -853,7 +862,7 @@ const Dashboard = () => {
                                 <div>
                                     <p className="text-sm font-medium text-gray-500">Producción perdida</p>
                                     <p className="mt-1 text-2xl font-bold text-gray-800">
-                                        { Math.round(stats.expected - stats.produced) } unidades
+                                        {Math.round(stats.expected - stats.produced)} unidades
                                     </p>
                                 </div>
                                 <div className="rounded-full bg-yellow-100 p-3">
@@ -866,11 +875,11 @@ const Dashboard = () => {
                                 <div className="flex items-center justify-between text-sm text-gray-500">
                                     <span>Eficiencia alcanzada</span>
                                     <span className="font-medium text-yellow-600">
-                                        { stats.efficiency }%
+                                        {stats.efficiency}%
                                     </span>
                                 </div>
                             </div>
-                    </div>
+                        </div>
 
                         <div className="rounded-lg border border-gray-100 p-4">
                             <div className="flex items-center justify-between">
@@ -879,7 +888,7 @@ const Dashboard = () => {
                                         Scrap
                                     </p>
                                     <p className="mt-1 text-2xl font-bold text-gray-800">
-                                        { metrics.scrap } unidades
+                                        {metrics.scrap} unidades
                                     </p>
                                 </div>
                                 <div className="rounded-full bg-green-100 p-3">
@@ -892,7 +901,7 @@ const Dashboard = () => {
                                 <div className="flex items-center justify-between text-sm text-gray-500">
                                     <span>Vs. promedio</span>
                                     <span className="font-medium text-green-600">
-                                        { metrics.scrapVsAvg >= 0 ? '+' : '' } { metrics.scrapVsAvg.toFixed(1) } unidades
+                                        {metrics.scrapVsAvg >= 0 ? '+' : ''} {metrics.scrapVsAvg.toFixed(1)} unidades
                                     </span>
                                 </div>
                             </div>
@@ -908,13 +917,13 @@ const Dashboard = () => {
                         </span>
                     </div>
                     <div className="h-80 flex justify-center">
-                        <Bar data={ deadTimeData } options={ barChartDeadTimes } />
+                        <Bar data={deadTimeData} options={barChartDeadTimes} />
                     </div>
                     <div className="mt-4 flex justify-between text-sm text-gray-500">
-                        <span>Total tiempo muerto: { deadTimeStats.totalMinutes } min</span>
-                        <span className="font-medium">Promedio diario: { deadTimeStats.averageMinutes } min</span>
+                        <span>Total tiempo muerto: {deadTimeStats.totalMinutes} min</span>
+                        <span className="font-medium">Promedio diario: {deadTimeStats.averageMinutes} min</span>
                     </div>
-                </div>   
+                </div>
             </div>
         </>
     )
