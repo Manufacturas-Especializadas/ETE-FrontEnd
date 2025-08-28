@@ -15,8 +15,8 @@ const Dashboard = () => {
         linea: "todas",
         turno: "todos",
         maquina: "todas",
-        fechaInicio: new Date(new Date().setDate(new Date().getDate() - 30)),
-        fechaFin: new Date()
+        fechaInicio: null,
+        fechaFin: null
     });
     const [tempFilters, setTempFilters] = useState({ ...filters });
     const [lines, setLines] = useState([]);
@@ -91,6 +91,12 @@ const Dashboard = () => {
         scrapVsAvg: 0
     });
 
+    const [availabilityStats, setAvailabilityStats] = useState({
+        totalTime: 0,
+        operatingTime: 0,
+        deadTime: 0
+    });
+
     const [stats, setStats] = useState({
         produced: 0,
         expected: 0,
@@ -104,12 +110,7 @@ const Dashboard = () => {
         const year = d.getFullYear();
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    };
-
-    const parseDateFromInput = (dateString) => {
-        if (!dateString) return null;
-        return new Date(dateString);
+        return `${year}-${month}-${day}`
     };
 
     useEffect(() => {
@@ -176,10 +177,6 @@ const Dashboard = () => {
     }, []);
 
     useEffect(() => {
-        const filtrosValidos = filters.fechaInicio && filters.fechaFin;
-
-        if (!filtrosValidos) return;
-
         const loadAllData = async () => {
             try {
                 setIsLoading(prev => ({ ...prev, general: true }));
@@ -202,17 +199,27 @@ const Dashboard = () => {
     }, [filters]);
 
     const applyFilters = () => {
-        // if (!tempFilters.fechaInicio || !tempFilters.fechaFin) {
-        //     alert("Selecciona un rango de fechas válido");
-        //     return;
-        // }
+        let fechaInicioFiltro = tempFilters.fechaInicio;
+        let fechaFinFiltro = tempFilters.fechaFin;
 
-        const fechaFin = new Date(tempFilters.fechaFin);
-        fechaFin.setHours(23, 59, 59, 999);
+        if (fechaFinFiltro && !fechaInicioFiltro) {
+            fechaInicioFiltro = new Date(2020, 0, 1);
+        }
+
+        if (fechaInicioFiltro && !fechaFinFiltro) {
+            fechaFinFiltro = new Date();
+        }
+
+        if (fechaInicioFiltro && fechaFinFiltro) {
+            const fechaFinAjustada = new Date(fechaFinFiltro);
+            fechaFinAjustada.setHours(23, 59, 59, 999);
+            fechaFinFiltro = fechaFinAjustada;
+        }
 
         setFilters({
             ...tempFilters,
-            fechaFin: fechaFin
+            fechaInicio: fechaInicioFiltro,
+            fechaFin: fechaFinFiltro
         });
     };
 
@@ -221,8 +228,8 @@ const Dashboard = () => {
             linea: "todas",
             turno: "todos",
             maquina: "todas",
-            fechaInicio: new Date(new Date().setDate(new Date().getDate() - 7)),
-            fechaFin: new Date(),
+            fechaInicio: null,
+            fechaFin: null,
         };
 
         setFilters(nuevosFiltros);
@@ -234,20 +241,17 @@ const Dashboard = () => {
         try {
             const params = new URLSearchParams();
 
-            if (filters.linea && filters.linea !== "todas") {
-                params.append('lineId', filters.linea);
+            if (filters.linea !== "todas") params.append('lineId', filters.linea);
+            if (filters.turno !== "todos") params.append('shiftId', filters.turno);
+            if (filters.maquina !== "todas") params.append('machineId', filters.maquina);
+
+            if (filters.fechaInicio) {
+                const startDate = new Date(filters.fechaInicio);
+                startDate.setHours(0, 0, 0, 0);
+                params.append('startDate', startDate.toISOString());
             }
 
-            if (filters.turno && filters.turno !== "todos") {
-                params.append('shiftId', filters.turno);
-            }
-
-            if (filters.maquina && filters.maquina !== "todas") {
-                params.append('machineId', filters.maquina);
-            }
-
-            if (filters.fechaInicio && filters.fechaFin && applyFilters) {
-                params.append('startDate', new Date(filters.fechaInicio).toISOString());
+            if (filters.fechaFin) {
                 const endDate = new Date(filters.fechaFin);
                 endDate.setHours(23, 59, 59, 999);
                 params.append('endDate', endDate.toISOString());
@@ -296,8 +300,17 @@ const Dashboard = () => {
                 params.append('shiftId', filters.turno);
             }
 
-            if (filters.fechaInicio && filters.fechaFin && applyFilters) {
-                params.append('startDate', new Date(filters.fechaInicio).toISOString());
+            if (filters.maquina && filters.maquina !== "todas") {
+                params.append('machineId', filters.maquina);
+            }
+
+            if (filters.fechaInicio) {
+                const startDate = new Date(filters.fechaInicio);
+                startDate.setHours(0, 0, 0, 0);
+                params.append('startDate', startDate.toISOString());
+            }
+
+            if (filters.fechaFin) {
                 const endDate = new Date(filters.fechaFin);
                 endDate.setHours(23, 59, 59, 999);
                 params.append('endDate', endDate.toISOString());
@@ -306,32 +319,68 @@ const Dashboard = () => {
             const response = await fetch(`${config.apiUrl}/ProductionForm/GetEfficiencyData?${params.toString()}`);
             const data = await response.json();
 
-            const summaryItem = data.summary && data.summary.length > 0 ? data.summary[0] : {
-                totalProduced: 0,
-                totalExpected: 1,
-                efficiency: 0
-            };
+            let totalProduced = 0;
+            let totalExpected = 0;
+            let efficiencySum = 0;
 
-            const efficiencyPercentage = Math.round(summaryItem.efficiency * 100);
-            const remaining = 100 - efficiencyPercentage;
+            if (data.summary && data.summary.length > 0) {
+                data.summary.forEach(item => {
+                    totalProduced += item.totalProduced;
+                    totalExpected += item.totalExpected;
+                    efficiencySum += item.efficiency;
+                });
 
+                const avgEfficiency = data.summary.length > 0 ? efficiencySum / data.summary.length : 0;
+                const efficiencyPercentage = Math.round(avgEfficiency * 100);
+
+                setEfficiencyData({
+                    labels: ["Eficiencia", "Diferencia"],
+                    datasets: [{
+                        data: [efficiencyPercentage, Math.max(0, 100 - efficiencyPercentage)],
+                        backgroundColor: ["#10B981", "#E5E7EB"],
+                        borderWidth: 0
+                    }]
+                });
+
+                setStats({
+                    produced: totalProduced,
+                    expected: Math.round(totalExpected),
+                    efficiency: efficiencyPercentage,
+                    hours: data.summary.length
+                });
+            } else {
+                setEfficiencyData({
+                    labels: ["Eficiencia", "Diferencia"],
+                    datasets: [{
+                        data: [0, 100],
+                        backgroundColor: ["#10B981", "#E5E7EB"],
+                        borderWidth: 0
+                    }]
+                });
+
+                setStats({
+                    produced: 0,
+                    expected: 0,
+                    efficiency: 0,
+                    hours: 0
+                });
+            }
+        } catch (error) {
+            console.error("Error loading efficiency data: ", error);
             setEfficiencyData({
                 labels: ["Eficiencia", "Diferencia"],
                 datasets: [{
-                    data: [efficiencyPercentage, remaining > 0 ? remaining : 0],
+                    data: [0, 100],
                     backgroundColor: ["#10B981", "#E5E7EB"],
                     borderWidth: 0
                 }]
             });
-
             setStats({
-                produced: summaryItem.totalProduced,
-                expected: Math.round(summaryItem.totalExpected),
-                efficiency: efficiencyPercentage,
-                hours: 1
+                produced: 0,
+                expected: 0,
+                efficiency: 0,
+                hours: 0
             });
-        } catch (error) {
-            console.error("Error loading efficiency data: ", error);
         }
     };
 
@@ -351,8 +400,13 @@ const Dashboard = () => {
                 params.append('shiftId', filters.turno);
             }
 
-            if (filters.fechaInicio && filters.fechaFin && applyFilters) {
-                params.append('startDate', new Date(filters.fechaInicio).toISOString());
+            if (filters.fechaInicio) {
+                const startDate = new Date(filters.fechaInicio);
+                startDate.setHours(0, 0, 0, 0);
+                params.append('startDate', startDate.toISOString());
+            }
+
+            if (filters.fechaFin) {
                 const endDate = new Date(filters.fechaFin);
                 endDate.setHours(23, 59, 59, 999);
                 params.append('endDate', endDate.toISOString());
@@ -361,41 +415,58 @@ const Dashboard = () => {
             const response = await fetch(`${config.apiUrl}/ProductionForm/GetAvailabilityData?${params}`);
             const data = await response.json();
 
-            const availableTime = Number(data.availableTime) || 0;
+            const operatingTime = Number(data.operatingTime) || 0;
             const totalTime = Number(data.totalTime) || 0;
+            const deadTime = Number(data.deadTime) || 0;
 
-            let availablePercent = 0;
-            let deadPercent = 0;
+            let availabilityPercent = data.percentage || 0;
+            let deadTimePercent = 0;
 
             if (totalTime > 0) {
-                availablePercent = Math.round((availableTime / totalTime) * 100);
-                deadPercent = 100 - availablePercent;
+                availabilityPercent = Math.round((operatingTime / totalTime) * 100);
+
+                deadTimePercent = Math.round((deadTime / totalTime) * 100);
+
+                availabilityPercent = Math.max(0, Math.min(100, availabilityPercent));
+                deadTimePercent = Math.max(0, Math.min(100, deadTimePercent));
+
+                if (availabilityPercent + deadTimePercent !== 100) {
+                    deadTimePercent = 100 - availabilityPercent;
+                }
             }
 
-            if (availablePercent < 0 || availablePercent > 100) availablePercent = 0;
-            if (deadPercent < 0 || deadPercent > 100) deadPercent = 0;
-
             setavailabilityData({
-                labels: ["Tiempo disponible", "Tiempo muerto"],
+                labels: ["Tiempo de funcionamiento", "Tiempo muerto"],
                 datasets: [{
-                    data: [availablePercent, deadPercent],
+                    data: [availabilityPercent, deadTimePercent],
                     backgroundColor: ["#3B82F6", "#F97316"],
                     borderWidth: 0
                 }]
             });
 
-            setAvailabilityPercentage(data.percentage || availablePercent);
+            setAvailabilityPercentage(availabilityPercent);
+            setAvailabilityStats({
+                totalTime: totalTime,
+                operatingTime: operatingTime,
+                deadTime: deadTime
+            });
+
         } catch (error) {
             console.error("Error loading availability data", error);
             setavailabilityData({
-                labels: ["Tiempo disponible", "Tiempo muerto"],
+                labels: ["Tiempo de funcionamiento", "Tiempo muerto"],
                 datasets: [{
-                    data: [0, 0],
+                    data: [0, 100],
                     backgroundColor: ["#3B82F6", "#F97316"],
                     borderWidth: 0
                 }]
             });
-            setAvailabilityPercentage(85);
+            setAvailabilityPercentage(0);
+            setAvailabilityStats({
+                totalTime: 0,
+                operatingTime: 0,
+                deadTime: 0
+            });
         }
     };
 
@@ -415,8 +486,13 @@ const Dashboard = () => {
                 params.append('machineId', filters.maquina);
             }
 
-            if (filters.fechaInicio && filters.fechaFin && applyFilters) {
-                params.append('startDate', new Date(filters.fechaInicio).toISOString());
+            if (filters.fechaInicio) {
+                const startDate = new Date(filters.fechaInicio);
+                startDate.setHours(0, 0, 0, 0);
+                params.append('startDate', startDate.toISOString());
+            }
+
+            if (filters.fechaFin) {
                 const endDate = new Date(filters.fechaFin);
                 endDate.setHours(23, 59, 59, 999);
                 params.append('endDate', endDate.toISOString());
@@ -469,15 +545,20 @@ const Dashboard = () => {
                 params.append("shiftId", filters.turno);
             }
 
-            if (filters.fechaInicio && filters.fechaFin && applyFilters) {
-                params.append('startDate', new Date(filters.fechaInicio).toISOString());
+            if (filters.maquina && filters.maquina !== "todas") {
+                params.append("machineId", filters.maquina);
+            }
+
+            if (filters.fechaInicio) {
+                const startDate = new Date(filters.fechaInicio);
+                startDate.setHours(0, 0, 0, 0);
+                params.append('startDate', startDate.toISOString());
+            }
+
+            if (filters.fechaFin) {
                 const endDate = new Date(filters.fechaFin);
                 endDate.setHours(23, 59, 59, 999);
                 params.append('endDate', endDate.toISOString());
-            }
-
-            if (filters.maquina && filters.maquina !== "todas") {
-                params.append("machineId", filters.maquina);
             }
 
             const [qualityRes, efficiencyRes, availabilityRes] = await Promise.all([
@@ -490,9 +571,16 @@ const Dashboard = () => {
             const efficiencyData = await efficiencyRes.json();
             const availabilityData = await availabilityRes.json();
 
-            const quality = qualityData.qualityPercentage || 0;
-            const efficiency = efficiencyData.summary?.length > 0 ?
-                Math.round(efficiencyData.summary[0].efficiency * 100) : 0;
+            const quality = qualityData.qualityPercentage ||
+                (qualityData.totalPieces > 0 ?
+                    Math.round(((qualityData.totalPieces - (qualityData.scrap || 0)) / qualityData.totalPieces) * 100) : 0);
+
+            let efficiency = 0;
+            if (efficiencyData.summary && efficiencyData.summary.length > 0) {
+                const totalEfficiency = efficiencyData.summary.reduce((sum, item) => sum + (item.efficiency || 0), 0);
+                efficiency = Math.round((totalEfficiency / efficiencyData.summary.length) * 100);
+            }
+
             const availability = availabilityData.percentage || 0;
 
             const calculatedOee = Math.round((availability / 100) * (efficiency / 100) * (quality / 100) * 100);
@@ -507,6 +595,13 @@ const Dashboard = () => {
                 }]
             });
 
+            // setOeeComponents({
+            //     availability,
+            //     efficiency,
+            //     quality,
+            //     oee: calculatedOee
+            // });
+
         } catch (error) {
             console.error("Error loading OEE data: ", error);
             setEteTotal(0);
@@ -518,6 +613,12 @@ const Dashboard = () => {
                     borderWidth: 0
                 }]
             });
+            // setOeeComponents({
+            //     availability: 0,
+            //     efficiency: 0,
+            //     quality: 0,
+            //     oee: 0
+            // });
         }
     };
 
@@ -538,7 +639,9 @@ const Dashboard = () => {
             }
 
             if (filters.fechaInicio) {
-                params.append('startDate', new Date(filters.fechaInicio).toISOString());
+                const startDate = new Date(filters.fechaInicio);
+                startDate.setHours(0, 0, 0, 0);
+                params.append('startDate', startDate.toISOString());
             }
 
             if (filters.fechaFin) {
@@ -664,7 +767,13 @@ const Dashboard = () => {
                                 <input
                                     type="date"
                                     value={formatDateForInput(tempFilters.fechaInicio)}
-                                    onChange={(e) => setTempFilters(prev => ({ ...prev, fechaInicio: parseDateFromInput(e.target.value) }))}
+                                    onChange={(e) => {
+                                        const newDate = e.target.value ? new Date(e.target.value + 'T00:00:00') : null;
+                                        setTempFilters(prev => ({
+                                            ...prev,
+                                            fechaInicio: newDate
+                                        }));
+                                    }}
                                     className="block rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900
                                     focus:border-blue-500"
                                 />
@@ -672,8 +781,13 @@ const Dashboard = () => {
                                 <input
                                     type="date"
                                     value={formatDateForInput(tempFilters.fechaFin)}
-                                    onChange={(e) => setTempFilters(prev => ({ ...prev, fechaFin: parseDateFromInput(e.target.value) }))}
-                                    min={formatDateForInput(tempFilters.fechaInicio)}
+                                    onChange={(e) => {
+                                        const newDate = e.target.value ? new Date(e.target.value + 'T23:59:59.999') : null;
+                                        setTempFilters(prev => ({
+                                            ...prev,
+                                            fechaFin: newDate
+                                        }));
+                                    }}
                                     className="block rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900
                                     focus:border-blue-500 focus:ring-blue-500"
                                 />
@@ -764,8 +878,8 @@ const Dashboard = () => {
                         <div className="mt-4 flex justify-between text-sm text-gray-500">
                             <span>Tiempo muerto total</span>
                             <span className="font-medium">
-                                {availabilityData.datasets?.[0]?.data?.[1] ?
-                                    `${Math.round((availabilityData.datasets[0].data[1] / 100) * 1440)} mins` :
+                                {availabilityStats.deadTime !== undefined ?
+                                    `${availabilityStats.deadTime} mins` :
                                     '0 mins'}
                             </span>
                         </div>
