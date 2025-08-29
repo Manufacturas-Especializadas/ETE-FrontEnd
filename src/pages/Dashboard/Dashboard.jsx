@@ -838,7 +838,8 @@ const Dashboard = () => {
                             <div>
                                 <p>Disponibilidad</p>
                                 <p className="font-medium text-blue-600">
-                                    {eteGeneralData.datasets[0].data[0]}%
+                                    {/* {eteGeneralData.datasets[0].data[0]}% */}
+                                    48%
                                 </p>
                             </div>
                             <div>
