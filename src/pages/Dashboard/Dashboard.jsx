@@ -876,7 +876,7 @@ const Dashboard = () => {
                             }
                         </div>
                         <div className="mt-4 flex justify-between text-sm text-gray-500">
-                            <span>Tiempo muerto total</span>
+                            <span>Tiempo muerto</span>
                             <span className="font-medium">
                                 {availabilityStats.deadTime !== undefined ?
                                     `${availabilityStats.deadTime} mins` :
