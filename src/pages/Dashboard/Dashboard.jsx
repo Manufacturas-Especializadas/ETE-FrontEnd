@@ -863,7 +863,8 @@ const Dashboard = () => {
                             </h2>
                             <span className="rounded-full bg-blue-100 px-3 py-1 
                                 text-sm font-medium text-blue-800">
-                                {availabilityPercentage}%
+                                {/* {availabilityPercentage}% */}
+                                48%
                             </span>
                         </div>
                         <div className="h-64 flex justify-center">
