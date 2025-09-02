@@ -838,8 +838,8 @@ const Dashboard = () => {
                             <div>
                                 <p>Disponibilidad</p>
                                 <p className="font-medium text-blue-600">
-                                    {/* {eteGeneralData.datasets[0].data[0]}% */}
-                                    48%
+                                    {eteGeneralData.datasets[0].data[0]}%
+                                    {/* 48% */}
                                 </p>
                             </div>
                             <div>
@@ -864,8 +864,8 @@ const Dashboard = () => {
                             </h2>
                             <span className="rounded-full bg-blue-100 px-3 py-1 
                                 text-sm font-medium text-blue-800">
-                                {/* {availabilityPercentage}% */}
-                                48%
+                                {availabilityPercentage}%
+                                {/* 48% */}
                             </span>
                         </div>
                         <div className="h-64 flex justify-center">
