@@ -14,18 +14,19 @@ const HomePage = () => {
         machine: "",
         part_number: "",
         piece_count: "",
-        scrap: ""
+        scrap: "",
+        manualDate: ""
     });
 
     const navigate = useNavigate();
-    const [deadTimesRows, setDeadTimesRows] = useState([{ 
-        code: "", 
-        minutes: "", 
+    const [deadTimesRows, setDeadTimesRows] = useState([{
+        code: "",
+        minutes: "",
         reason: "",
         reasonId: ""
     }]);
 
-    const handleSubmit = async(e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         if (!productionData.part_number || !productionData.piece_count) {
@@ -46,6 +47,9 @@ const HomePage = () => {
             linesId: parseInt(productionData.line_origin) || 0,
             processId: parseInt(productionData.machine_process) || 0,
             machineId: parseInt(productionData.machine) || 0,
+            manualDate: productionData.manualDate
+                ? new Date(productionData.manualDate).toISOString()
+                : null,
             deadTimes: deadTimesRows
                 .filter(row => row.code && !isNaN(row.minutes) && row.minutes > 0)
                 .map(row => ({
@@ -55,7 +59,7 @@ const HomePage = () => {
                 }))
         };
 
-        try{
+        try {
 
             Swal.fire({
                 title: "Registrando...",
@@ -84,15 +88,15 @@ const HomePage = () => {
             Swal.close();
 
             if (!response.ok) {
-                const serverError = responseData.errors 
+                const serverError = responseData.errors
                     ? Object.entries(responseData.errors)
                         .map(([key, value]) => `${key}: ${value}`)
                         .join('\n')
                     : responseData.title || 'Error en el servidor';
-                
+
                 throw new Error(serverError);
             }
-                
+
             setProductionData({
                 time: "",
                 line_origin: "",
@@ -100,12 +104,13 @@ const HomePage = () => {
                 machine: "",
                 part_number: "",
                 piece_count: "",
-                scrap: ""
+                scrap: "",
+                manualDate: ""
             });
-            
-            setDeadTimesRows([{ 
-                code: "", 
-                minutes: "", 
+
+            setDeadTimesRows([{
+                code: "",
+                minutes: "",
                 reason: "",
                 reasonId: ""
             }]);
@@ -115,7 +120,7 @@ const HomePage = () => {
                 title: "Exito",
                 text: "Registro guardado"
             });
-        }catch(error){
+        } catch (error) {
             Swal.close();
 
             console.error("Error completo:", {
@@ -130,12 +135,12 @@ const HomePage = () => {
                 html: `
                     <div class="text-left">
                         <p class="font-semibold">${error.message.split('\n')[0]}</p>
-                        ${error.message.includes('\n') ? 
-                            `<details class="mt-2 text-sm">
+                        ${error.message.includes('\n') ?
+                        `<details class="mt-2 text-sm">
                                 <summary>Detalles</summary>
                                 <div class="bg-gray-100 p-2 mt-1 rounded">${error.message.split('\n').slice(1).join('<br>')}</div>
                             </details>` : ''
-                        }
+                    }
                         <p class="mt-3 text-sm">Por favor verifique los datos e intente nuevamente.</p>
                     </div>
                 `,
@@ -145,28 +150,28 @@ const HomePage = () => {
         }
     };
 
-    const handleNavigate = (path) =>{
+    const handleNavigate = (path) => {
         navigate(path);
     };
 
     return (
         <>
             <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-                <form className="max-w-7xl mx-auto" onSubmit={ handleSubmit }>
-                    <ProductionHeader/>
+                <form className="max-w-7xl mx-auto" onSubmit={handleSubmit}>
+                    <ProductionHeader />
 
                     <div className="flex flex-col lg:flex-row gap-6 mt-6">
                         <div className="w-full lg:w-1/2">
-                            <ProductionForm 
-                                formData={ productionData }
+                            <ProductionForm
+                                formData={productionData}
                                 onFormChange={(data) => setProductionData(prev => ({ ...prev, ...data }))}
                             />
                         </div>
 
                         <div className="w-full lg:w-1/2">
                             <DeadTimesForm
-                                rows={ deadTimesRows }
-                                setRows={ setDeadTimesRows }
+                                rows={deadTimesRows}
+                                setRows={setDeadTimesRows}
                             />
                         </div>
                     </div>
@@ -184,19 +189,19 @@ const HomePage = () => {
                             Registrar
                         </button>
                         <button
-                            onClick={() => handleNavigate("/dashboard") }
+                            onClick={() => handleNavigate("/dashboard")}
                             className="flex items-center justify-center px-6 py-3 border
                             border-gray-300 shadow-sm text-base font-medium rounded-md
                             text-gray-700 bg-white hover:bg-amber-50 hover:cursor-pointer 
-                            focus:outline-none focus:ring-2 focus:ring-primary transition-colors"                            
+                            focus:outline-none focus:ring-2 focus:ring-primary transition-colors"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                                 <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
                             </svg>
-                        Dashboard
-                    </button>  
+                            Dashboard
+                        </button>
                     </div>
-                </form>               
+                </form>
             </div>
         </>
     )
