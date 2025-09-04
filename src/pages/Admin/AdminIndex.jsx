@@ -10,9 +10,9 @@ const AdminIndex = () => {
     const [downloading, setDownloading] = useState(false);
 
     const formateDate = (dateString) => {
-        if(!dateString) return "Sin fecha";
+        if (!dateString) return "Sin fecha";
 
-        try{
+        try {
             const date = new Date(dateString);
 
             return date.toLocaleDateString('es-Es', {
@@ -22,14 +22,14 @@ const AdminIndex = () => {
                 // hour: '2-digit',
                 // minute: '2-digit'
             });
-        }catch(error){
+        } catch (error) {
             console.error("Error al formatear fecha: ", e);
             return "Fecha invalida"
         }
     };
 
-    const handleDownloadExcel = async() => {
-        try{
+    const handleDownloadExcel = async () => {
+        try {
             setDownloading(true);
 
             Swal.fire({
@@ -49,7 +49,7 @@ const AdminIndex = () => {
                 body: JSON.stringify()
             });
 
-            if(!response.ok) throw new Error("Error al generar el reporte");
+            if (!response.ok) throw new Error("Error al generar el reporte");
 
             const blob = await response.blob();
             const downloadUrl = window.URL.createObjectURL(blob);
@@ -71,39 +71,39 @@ const AdminIndex = () => {
                 timer: 2000,
                 showDenyButton: false
             });
-        }catch(error){
+        } catch (error) {
             console.error("Error al descargar: ", error);
             Swal.fire({
                 icon: "error",
                 title: "Oooops...",
                 text: "Ocurrio un error al descargar el reporte"
             });
-        }finally{
+        } finally {
             setDownloading(false);
         }
     };
 
     useEffect(() => {
-        const getListProduction = async() => {
-            try{
+        const getListProduction = async () => {
+            try {
                 const response = await fetch(`${config.apiUrl}/ProductionForm/GetListProduction`);
 
-                if(!response.ok) throw new Error("Error al obtener la lista");
+                if (!response.ok) throw new Error("Error al obtener la lista");
 
                 const data = await response.json();
                 setProduction(data);
                 setError(null);
-            }catch(error){
+            } catch (error) {
                 console.error("Error del servidor");
                 setError("No se pudieron cargar los datos. Intente nuevamente");
                 setProduction([]);
-            }finally{
+            } finally {
                 setLoading(false);
             }
         };
 
         getListProduction();
-    }, []); 
+    }, []);
 
     const columns = [
         {
@@ -115,6 +115,12 @@ const AdminIndex = () => {
             name: 'Línea',
             selector: row => row.line,
             sortable: true,
+        },
+        {
+            name: 'Numero de parte',
+            selector: row => row.partNumber,
+            sortable: true
+
         },
         {
             name: 'Máquina',
@@ -134,7 +140,7 @@ const AdminIndex = () => {
         {
             name: 'Tiempo muerto',
             selector: row => row.minutes,
-            sortable: true,            
+            sortable: true,
         },
         {
             name: 'Scrap',
@@ -183,20 +189,20 @@ const AdminIndex = () => {
                         </h1>
                         <div className="flex space-x-3">
                             <button className="bg-primary hover:bg-secondary text-white px-4 py-2 rounded-md 
-                                transition-colors hover:cursor-pointer" disabled={ loading } onClick={() => handleDownloadExcel()}>
+                                transition-colors hover:cursor-pointer" disabled={loading} onClick={() => handleDownloadExcel()}>
                                 Exportar
                             </button>
                             <button className="bg-tertiary hover:bg-[#005a8c] text-white px-4 py-2 rounded-md
-                                transition-colors hover:cursor-pointer" disabled={ loading }>
+                                transition-colors hover:cursor-pointer" disabled={loading}>
                                 Filtrar
                             </button>
                         </div>
                     </div>
 
                     <div className="bg-white rounded-lg shadow-md p-4">
-                        <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center">                            
+                        <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center">
                             <div>
-                                <input 
+                                <input
                                     type="text"
                                     placeholder="Buscar..."
                                     className="border rounded p-2 text-sm w-full sm:w-64"
@@ -212,7 +218,7 @@ const AdminIndex = () => {
                             ) : error ? (
                                 <div className="py-12 text-center">
                                     <div className="text-red-500 font-medium mb-2">
-                                        { error }
+                                        {error}
                                     </div>
                                     <button className="bg-primary text-white px-4 py-2 rounded-md
                                         hover:bg-secondary transition-all"
@@ -224,25 +230,25 @@ const AdminIndex = () => {
                             ) : (
                                 <>
                                     <DataTable
-                                        columns={ columns }
-                                        data={ production }
-                                        customStyles={ customStyles }
+                                        columns={columns}
+                                        data={production}
+                                        customStyles={customStyles}
                                         pagination
                                         responsive
                                         highlightOnHover
                                         striped
-                                        paginationPerPage={ 10 }
+                                        paginationPerPage={10}
                                         paginationRowsPerPageOptions={[10, 25, 50, 100]}
                                         noDataComponent={<div className="py-8 text-gray-500"> No hay datos disponibles </div>}
                                     />
 
                                     <div className="mt-6 text-sm text-gray-500">
-                                        <p>Mostrando { production.length } de { production.length } registros</p>
+                                        <p>Mostrando {production.length} de {production.length} registros</p>
                                     </div>
                                 </>
                             )
-                        }                        
-                    </div>                    
+                        }
+                    </div>
                 </div>
             </div>
         </>
