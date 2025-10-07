@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DeadTimesForm from "../../components/DeadTimesForm/DeadTiemsForm";
 import ProductionForm from "../../components/ProductionForm/ProductionForm";
@@ -7,6 +7,11 @@ import config from "../../../config";
 import Swal from "sweetalert2";
 
 const HomePage = () => {
+    const [partValidation, setPartValidation] = useState({
+        isValid: null,
+        isLoading: false,
+        error: null
+    });
     const [productionData, setProductionData] = useState({
         time: "",
         line_origin: "",
@@ -35,6 +40,16 @@ const HomePage = () => {
                 title: 'Campos requeridos',
                 text: 'Por favor complete todos los campos obligatorios',
                 timer: 3000
+            });
+            return;
+        }
+
+        if (partValidation.isValid !== true) {
+            Swal.fire({
+                icon: "error",
+                title: "Número de parte inválido",
+                text: "El número de parte ingresado no existe en el catálogo. Por favor verifica e intenta de nuevo.",
+                confirmButtonColor: "#3b82f6"
             });
             return;
         }
@@ -154,6 +169,10 @@ const HomePage = () => {
         navigate(path);
     };
 
+    useEffect(() => {
+        console.log("Estado de validación:", partValidation);
+    }, [partValidation]);
+
     return (
         <>
             <div className="min-h-screen bg-gray-50 p-4 md:p-6">
@@ -165,6 +184,8 @@ const HomePage = () => {
                             <ProductionForm
                                 formData={productionData}
                                 onFormChange={(data) => setProductionData(prev => ({ ...prev, ...data }))}
+                                partValidation={partValidation}
+                                onPartValidationChange={setPartValidation}
                             />
                         </div>
 
@@ -179,6 +200,12 @@ const HomePage = () => {
                     <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
                         <button
                             type="submit"
+                            disabled={
+                                !productionData.part_number ||
+                                !productionData.piece_count ||
+                                partValidation.isLoading ||
+                                partValidation.isValid !== true
+                            }
                             className="flex items-center justify-center px-6 py-3 border border-transparent
                             shadow-sm text-base font-medium rounded-md bg-primary hover:bg-secondary hover:cursor-pointer
                             focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
