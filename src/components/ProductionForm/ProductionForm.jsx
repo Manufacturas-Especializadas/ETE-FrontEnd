@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import config from "../../../config";
 import debounce from "lodash.debounce";
 
-const ProductionForm = ({ formData, onFormChange }) => {
+const ProductionForm = ({ formData, onFormChange, partValidation, onPartValidationChange }) => {
     const [times, setTimes] = useState([]);
     const [lines, setLines] = useState([]);
     const [processes, setProcesses] = useState([]);
@@ -13,17 +13,13 @@ const ProductionForm = ({ formData, onFormChange }) => {
         processes: false,
         machines: false
     });
-    const [partValidation, setPartValidation] = useState({
-        isValid: null,
-        isLoading: false,
-        error: null
-    });
+
+    const setPartValidation = onPartValidationChange;
 
     const validatePartRef = useRef();
 
     useEffect(() => {
         const validatePart = async (partNumber) => {
-
             if (!partNumber.trim()) {
                 setPartValidation({ isValid: null, isLoading: false, error: null });
                 return;
@@ -41,6 +37,8 @@ const ProductionForm = ({ formData, onFormChange }) => {
                 }
 
                 const data = await response.json();
+                console.log("Validando:", partNumber, "→ Resultado:", data.exists);
+
                 setPartValidation({
                     isValid: data.exists,
                     isLoading: false,
@@ -148,7 +146,6 @@ const ProductionForm = ({ formData, onFormChange }) => {
         setPartDisplayValue(displayValue);
 
         const normalizedValue = displayValue.trim().toUpperCase();
-
         onFormChange({ part_number: normalizedValue });
 
         setPartValidation({ isValid: null, isLoading: false, error: null });
