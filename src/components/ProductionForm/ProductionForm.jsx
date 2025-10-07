@@ -1,16 +1,66 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import config from "../../../config";
+import debounce from "lodash.debounce";
 
 const ProductionForm = ({ formData, onFormChange }) => {
     const [times, setTimes] = useState([]);
     const [lines, setLines] = useState([]);
     const [processes, setProcesses] = useState([]);
     const [machines, setMachines] = useState([]);
+    const [partDisplayValue, setPartDisplayValue] = useState(formData.part_number || '');
     const [isLoading, setIsLoading] = useState({
         lines: false,
         processes: false,
         machines: false
     });
+    const [partValidation, setPartValidation] = useState({
+        isValid: null,
+        isLoading: false,
+        error: null
+    });
+
+    const validatePartRef = useRef();
+
+    useEffect(() => {
+        const validatePart = async (partNumber) => {
+
+            if (!partNumber.trim()) {
+                setPartValidation({ isValid: null, isLoading: false, error: null });
+                return;
+            }
+
+            setPartValidation(prev => ({ ...prev, isLoading: true, error: null }));
+
+            try {
+                const response = await fetch(
+                    `${config.apiUrl}/ProductionForm/ValidatePartNumber/${encodeURIComponent(partNumber.trim())}`
+                );
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                setPartValidation({
+                    isValid: data.exists,
+                    isLoading: false,
+                    error: null
+                });
+            } catch (err) {
+                setPartValidation({
+                    isValid: null,
+                    isLoading: false,
+                    error: err.message
+                });
+            }
+        };
+
+        validatePartRef.current = debounce(validatePart, 500);
+
+        return () => {
+            validatePartRef.current?.cancel();
+        };
+    }, []);
 
     useEffect(() => {
         const fetchInitialData = async () => {
@@ -92,6 +142,27 @@ const ProductionForm = ({ formData, onFormChange }) => {
         const { name, value } = e.target;
         onFormChange({ [name]: value });
     };
+
+    const handlePartNumberChange = (e) => {
+        const displayValue = e.target.value;
+        setPartDisplayValue(displayValue);
+
+        const normalizedValue = displayValue.trim().toUpperCase();
+
+        onFormChange({ part_number: normalizedValue });
+
+        setPartValidation({ isValid: null, isLoading: false, error: null });
+
+        if (validatePartRef.current) {
+            validatePartRef.current(normalizedValue);
+        }
+    };
+
+    useEffect(() => {
+        if (formData.part_number !== partDisplayValue.toUpperCase().trim()) {
+            setPartDisplayValue(formData.part_number || '');
+        }
+    }, [formData.part_number]);
 
     return (
         <>
@@ -200,16 +271,54 @@ const ProductionForm = ({ formData, onFormChange }) => {
 
                     <div className="space-y-1">
                         <label className="block text-sm font-medium text-gray-600">
-                            Número Parte
+                            Número de parte
                         </label>
-                        <input
-                            type="text"
-                            name="part_number"
-                            onChange={handleChange}
-                            value={formData.part_number}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
-                            focus:outline-none focus:ring-2 focus:ring-primary focus:border-secondary"
-                        />
+                        <div className="relative">
+                            <input
+                                type="text"
+                                name="part_number"
+                                onChange={handlePartNumberChange}
+                                value={partDisplayValue}
+                                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary ${partValidation.isValid === true
+                                    ? "border-green-500 focus:border-green-500"
+                                    : partValidation.isValid === false
+                                        ? "border-red-500 focus:border-red-500"
+                                        : "border-gray-300"
+                                    }`}
+                            />
+                            {
+                                partValidation.isLoading && (
+                                    <div className="absolute right-3 top-2.5">
+                                        <div className="w-4 h-4 border-2 border-t-transparent border-gray-400 rounded-full animate-spin"></div>
+                                    </div>
+                                )
+                            }
+
+                            {
+                                !partValidation.isLoading && partValidation.isValid !== null && (
+                                    <div className="absolute right-3 top-2.5">
+                                        {
+                                            partValidation.isValid ? (
+                                                <span className="text-green-500 text-lg">✓</span>
+                                            ) : (
+                                                <span className="text-red-500 text-lg">✗</span>
+                                            )
+                                        }
+                                    </div>
+                                )
+                            }
+                        </div>
+                        {
+                            partValidation.isValid === false && (
+                                <p className="mt-1 text-sm text-red-600">Número de parte no válido</p>
+                            )
+                        }
+
+                        {
+                            partValidation.error && (
+                                <p className="mt-1 text-sm text-yellow-600">Error al validar: {partValidation.error}</p>
+                            )
+                        }
                     </div>
 
                     <div className="space-y-1">
